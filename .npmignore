@@ -1,0 +1,10 @@
+src/
+tests/
+installers/
+scripts/
+.github/
+downloads/
+docs/
+*.tgz
+tsconfig.json
+.releaserc.json

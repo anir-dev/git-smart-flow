@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+out/
+
+# Environment variables — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Test & coverage
+coverage/
+.nyc_output/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# gsf local config (repo-specific, kept per developer)
+# .git-smart-flow.json
+
+# Temp
+*.tmp
+*.temp
+.cache/
+
+# Claude Code session data
+.claude/

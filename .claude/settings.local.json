@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/coyote/Documents/Proyectos/git-smart-flow/bin/*.js)",
+      "Bash(npm run *)",
+      "Bash(node /Users/coyote/Documents/Proyectos/git-smart-flow/bin/gsf.js --help)",
+      "Bash(node /Users/coyote/Documents/Proyectos/git-smart-flow/bin/git-smart-flow.js info)",
+      "Bash(node *)",
+      "Bash(npx tsx *)",
+      "Bash(npm test *)",
+      "Bash(chmod +x /Users/coyote/Documents/Proyectos/git-smart-flow/scripts/smoke-test.sh)",
+      "Bash(bash /Users/coyote/Documents/Proyectos/git-smart-flow/scripts/smoke-test.sh)",
+      "Bash(bash scripts/smoke-test.sh)"
+    ]
+  }
+}
