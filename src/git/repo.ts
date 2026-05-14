@@ -1,4 +1,6 @@
 import { execSync, spawnSync } from 'child_process';
+import { existsSync, statSync } from 'fs';
+import { join } from 'path';
 import type { RepoContext, StagedFile } from '../types/index.js';
 
 function git(args: string[], cwd = process.cwd()): string {
@@ -170,6 +172,27 @@ export function getUntrackedFiles(cwd = process.cwd()): string[] {
 
 export function getStagedDiff(cwd = process.cwd()): string {
   return gitSafe(['diff', '--cached'], cwd) ?? '';
+}
+
+export interface LastCommit { shortSha: string; message: string; author: string; ago: string }
+
+export function getLastCommit(cwd = process.cwd()): LastCommit | null {
+  const out = gitSafe(['log', '-1', '--format=%h\x1f%s\x1f%an\x1f%ar'], cwd);
+  if (!out) return null;
+  const [shortSha, message, author, ago] = out.split('\x1f');
+  return { shortSha: shortSha ?? '', message: message ?? '', author: author ?? '', ago: ago ?? '' };
+}
+
+export function fetchRemote(cwd = process.cwd()): { ok: boolean; output: string } {
+  const r = spawnSync('git', ['fetch'], { cwd, encoding: 'utf-8', timeout: 15000 });
+  return { ok: r.status === 0, output: ((r.stdout ?? '') + (r.stderr ?? '')).trim() };
+}
+
+export function getLastFetchTime(cwd = process.cwd()): Date | null {
+  try {
+    const p = join(cwd, '.git', 'FETCH_HEAD');
+    return existsSync(p) ? statSync(p).mtime : null;
+  } catch { return null; }
 }
 
 export function getCommitsSinceBase(base: string, cwd = process.cwd()): string[] {

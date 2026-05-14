@@ -132,6 +132,22 @@ program
   });
 
 program
+  .command('sync')
+  .description('Fetch from remote, show ahead/behind status, pull or resolve conflicts')
+  .action(async () => {
+    const { runSync } = await import('./commands/sync');
+    await runSync();
+  });
+
+program
+  .command('revert')
+  .description('Undo / revert wizard: remove bad files, reset commits, revert to remote…')
+  .action(async () => {
+    const { runRevert } = await import('./commands/revert');
+    await runRevert();
+  });
+
+program
   .command('info')
   .description('Show current repository context')
   .action(async () => {

@@ -69,14 +69,16 @@ export async function multiselectPrompt(message: string, choices: string[]): Pro
 }
 
 // ── Smart file selector ────────────────────────────────────────────────────
-// Uses flat multiselect for ≤20 files; directory-grouped UI for more.
+// Always shows "Stage ALL" + directory grouping; flat list for ≤1 file.
 
-const DIR_THRESHOLD = 20;
 const PAGE_SIZE = 30;
 
 export async function smartFileSelectPrompt(message: string, files: string[]): Promise<string[]> {
-  if (files.length <= DIR_THRESHOLD) {
-    return multiselectPrompt(message, files);
+  if (files.length === 0) return [];
+  if (files.length === 1) {
+    // Single file: just confirm
+    const ok = await ask(`Stage "${files[0]}"? [Y/n] `);
+    return (!ok.trim() || ok.trim().toLowerCase() === 'y') ? [files[0]] : [];
   }
   return directoryModeSelect(message, files);
 }
@@ -102,16 +104,20 @@ async function ask(prompt: string): Promise<string> {
 async function directoryModeSelect(message: string, files: string[]): Promise<string[]> {
   const dirMap = groupByTopDir(files);
   const dirs = [...dirMap.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const multiDir = dirs.length > 1;
 
-  console.log(`\n${message}  [${files.length} files]\n`);
+  console.log(`\n${message}  [${files.length} file(s)]\n`);
   console.log(`  a.  Stage ALL ${files.length} files`);
-  dirs.forEach(([dir, dirFiles], i) => {
-    const label = dir.padEnd(30);
-    console.log(`  ${String(i + 1).padStart(2)}.  ${label}  ${dirFiles.length} file(s)`);
-  });
+  if (multiDir) {
+    dirs.forEach(([dir, dirFiles], i) => {
+      console.log(`  ${String(i + 1).padStart(2)}.  ${dir.padEnd(28)}  ${dirFiles.length} file(s)`);
+    });
+  }
   console.log('   f.  Browse / select individual files');
   console.log('   0.  Cancel — stage nothing');
-  console.log('\n  Tip: combine with commas, e.g. "1,3" stages those two directories.');
+  if (multiDir) {
+    console.log('\n  Tip: combine with commas, e.g. "1,3" stages those two directories.');
+  }
 
   const raw = await ask('\nChoice: ');
   const tokens = raw ? raw.split(',').map((t) => t.trim().toLowerCase()) : [];
@@ -125,26 +131,22 @@ async function directoryModeSelect(message: string, files: string[]): Promise<st
       selected.push(...picked);
       continue;
     }
+    if (!multiDir) continue; // only 'a' and 'f' are valid when there's one directory
     const idx = parseInt(token, 10) - 1;
     if (idx < 0 || idx >= dirs.length) continue;
     const [dirName, dirFiles] = dirs[idx];
 
-    if (dirFiles.length > DIR_THRESHOLD) {
-      const all = await confirmPrompt(`Stage all ${dirFiles.length} file(s) in ${dirName}?`, true);
-      if (all) {
-        selected.push(...dirFiles);
-      } else {
-        // Recurse into sub-directories of this directory
-        const sub = await directoryModeSelect(`Select in ${dirName}`, dirFiles);
-        selected.push(...sub);
-      }
+    if (dirFiles.length <= 15) {
+      // Small directory: show files directly, no intermediate prompt
+      const picked = await multiselectPrompt(`Files in ${dirName} (${dirFiles.length})`, dirFiles);
+      selected.push(...picked);
     } else {
       const all = await confirmPrompt(`Stage all ${dirFiles.length} file(s) in ${dirName}?`, true);
       if (all) {
         selected.push(...dirFiles);
       } else {
-        const picked = await multiselectPrompt(`Files in ${dirName}`, dirFiles);
-        selected.push(...picked);
+        const sub = await directoryModeSelect(`Select in ${dirName}`, dirFiles);
+        selected.push(...sub);
       }
     }
   }
