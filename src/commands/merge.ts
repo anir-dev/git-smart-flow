@@ -9,7 +9,7 @@ import { startSpinner, succeedSpinner, failSpinner } from '../ux/spinner.js';
 export async function runMerge(): Promise<void> {
   const cwd = process.cwd();
 
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
 
   if (hasUncommittedChanges(cwd)) {
     error('You have uncommitted changes. Commit or stash them before merging.');
@@ -21,9 +21,11 @@ export async function runMerge(): Promise<void> {
 
   // List branches
   const branchResult = spawnSync('git', ['branch', '-a', '--format=%(refname:short)'], {
-    cwd, encoding: 'utf-8',
+    cwd,
+    encoding: 'utf-8',
   });
-  const allBranches = (branchResult.stdout ?? '').split('\n')
+  const allBranches = (branchResult.stdout ?? '')
+    .split('\n')
     .map((b) => b.trim())
     .filter((b) => b && b !== currentBranch && !b.includes('HEAD'));
 
@@ -31,7 +33,7 @@ export async function runMerge(): Promise<void> {
   keyValue('Current branch', currentBranch);
   blank();
 
-  let sourceBranch = await inputPrompt(
+  const sourceBranch = await inputPrompt(
     `Branch to merge INTO "${currentBranch}"`,
     config.git.defaultBaseBranches[0]
   );
@@ -47,7 +49,8 @@ export async function runMerge(): Promise<void> {
 
   // Show commits that will be merged
   const logResult = spawnSync('git', ['log', `${currentBranch}..${sourceBranch}`, '--oneline'], {
-    cwd, encoding: 'utf-8',
+    cwd,
+    encoding: 'utf-8',
   });
   const commits = (logResult.stdout ?? '').split('\n').filter(Boolean);
 
@@ -60,14 +63,18 @@ export async function runMerge(): Promise<void> {
   blank();
 
   const confirmed = await confirmPrompt(`Merge "${sourceBranch}" into "${currentBranch}"?`);
-  if (!confirmed) { info('Merge cancelled.'); return; }
+  if (!confirmed) {
+    info('Merge cancelled.');
+    return;
+  }
 
   try {
     execSync(`git merge ${sourceBranch}`, { cwd, stdio: 'inherit' });
     if (hasMergeConflicts(cwd)) {
       warning('Merge conflicts detected. Resolve them and run "git commit" to finish.');
       const conflictResult = spawnSync('git', ['diff', '--name-only', '--diff-filter=U'], {
-        cwd, encoding: 'utf-8',
+        cwd,
+        encoding: 'utf-8',
       });
       const conflicted = (conflictResult.stdout ?? '').split('\n').filter(Boolean);
       section('Conflicted files');

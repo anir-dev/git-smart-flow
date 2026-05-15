@@ -1,0 +1,6 @@
+dist/
+node_modules/
+downloads/
+installers/
+*.md
+package-lock.json

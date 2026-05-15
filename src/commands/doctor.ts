@@ -30,7 +30,9 @@ async function gatherDiagData(): Promise<{
   sections: DiagSection[];
   allOk: boolean;
 }> {
-  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string };
+  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as {
+    version: string;
+  };
   const nodeVersion = process.version;
   const nodeOk = parseInt(nodeVersion.slice(1), 10) >= 18;
 
@@ -56,7 +58,7 @@ async function gatherDiagData(): Promise<{
     hasHusky = convention.hasHusky;
   }
 
-  const available = await detectAvailableProviders() as string[];
+  const available = (await detectAvailableProviders()) as string[];
   const allProviders = ['heuristic', 'ollama', 'copilot', 'openai', 'claude'];
 
   const sections: DiagSection[] = [
@@ -100,13 +102,17 @@ async function gatherDiagData(): Promise<{
       items: isRepo
         ? [
             { status: 'ok' as const, label: 'Git repo detectado' },
-            { status: hasCommitlint ? 'ok' : 'info' as const, label: `Commitlint  ${hasCommitlint ? 'detectado' : 'no detectado'}` },
-            { status: hasHusky ? 'ok' : 'info' as const, label: `Husky  ${hasHusky ? 'detectado' : 'no detectado'}` },
+            {
+              status: hasCommitlint ? 'ok' : ('info' as const),
+              label: `Commitlint  ${hasCommitlint ? 'detectado' : 'no detectado'}`,
+            },
+            {
+              status: hasHusky ? 'ok' : ('info' as const),
+              label: `Husky  ${hasHusky ? 'detectado' : 'no detectado'}`,
+            },
             { status: 'info' as const, label: `Convención  ${convType}` },
           ]
-        : [
-            { status: 'info' as const, label: 'No estás en un repositorio Git' },
-          ],
+        : [{ status: 'info' as const, label: 'No estás en un repositorio Git' }],
     },
     {
       title: 'Proveedores de IA',
@@ -122,10 +128,21 @@ async function gatherDiagData(): Promise<{
   const allOk = nodeOk && gitOk;
 
   return {
-    pkg, nodeOk, nodeVersion, gitVersion, gitOk,
-    isRepo, convType, hasCommitlint, hasHusky,
-    hasGlobalConfig, configProvider, configLang,
-    available, sections, allOk,
+    pkg,
+    nodeOk,
+    nodeVersion,
+    gitVersion,
+    gitOk,
+    isRepo,
+    convType,
+    hasCommitlint,
+    hasHusky,
+    hasGlobalConfig,
+    configProvider,
+    configLang,
+    available,
+    sections,
+    allOk,
   };
 }
 
@@ -144,17 +161,28 @@ async function runInkDoctor(): Promise<void> {
     }) as JSX.Element
   );
   // Let one render cycle complete then unmount cleanly
-  await new Promise<void>((r) => setImmediate(() => { unmount(); r(); }));
+  await new Promise<void>((r) =>
+    setImmediate(() => {
+      unmount();
+      r();
+    })
+  );
   console.log('');
 }
 
 async function runPlainDoctor(): Promise<void> {
-  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string };
+  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as {
+    version: string;
+  };
   section('Environment Diagnostic');
 
   const nodeVersion = process.version;
   const nodeOk = parseInt(nodeVersion.slice(1), 10) >= 18;
-  nodeOk ? success(`Node.js ${nodeVersion}`) : error(`Node.js ${nodeVersion} — requires >= 18`);
+  if (nodeOk) {
+    success(`Node.js ${nodeVersion}`);
+  } else {
+    error(`Node.js ${nodeVersion} — requires >= 18`);
+  }
 
   const gitResult = spawnSync('git', ['--version'], { encoding: 'utf-8' });
   if (gitResult.status === 0) {
