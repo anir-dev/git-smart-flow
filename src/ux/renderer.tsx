@@ -30,7 +30,13 @@ export async function renderInteractive<T>(
   return new Promise<T>((resolve, reject) => {
     let unmountFn: (() => void) | undefined;
 
+    const onSigint = () => {
+      unmountFn?.();
+      reject(new Error('SIGINT'));
+    };
+
     const done = (value: T) => {
+      process.removeListener('SIGINT', onSigint);
       unmountFn?.();
       resolve(value);
     };
@@ -39,12 +45,9 @@ export async function renderInteractive<T>(
       const element = factory(done);
       const { unmount } = render(element);
       unmountFn = unmount;
-
-      process.once('SIGINT', () => {
-        unmount();
-        reject(new Error('SIGINT'));
-      });
+      process.once('SIGINT', onSigint);
     } catch (err) {
+      process.removeListener('SIGINT', onSigint);
       reject(err);
     }
   });

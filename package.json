@@ -32,7 +32,7 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
-    "test": "npx tsx --test tests/**/*.test.ts",
+    "test": "find tests -name '*.test.ts' | xargs npx tsx --test",
     "smoke": "bash scripts/smoke-test.sh",
     "prepare-release": "tsx scripts/prepare-release.ts",
     "release": "release-it",

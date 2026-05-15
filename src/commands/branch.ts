@@ -78,13 +78,13 @@ async function createBranchFlow(cwd: string): Promise<void> {
     warning(`Ticket "${ticket}" doesn't match pattern ${config.commit.ticketPattern}`);
   }
 
-  // 3. Description → slug
-  const description = await inputPrompt('Short description (e.g. "add login page")');
-  if (!description.trim()) { info('Cancelled — no description provided.'); return; }
+  // 3. Description → slug (optional)
+  const description = await inputPrompt('Short description (optional, e.g. "add login page")', '');
   const slug = toSlug(description);
 
   // 4. Compose branch name
-  const parts = [prefix, ticket ? `${ticket}-${slug}` : slug];
+  const middle = slug ? (ticket ? `${ticket}-${slug}` : slug) : ticket;
+  const parts = middle ? [prefix, middle] : [prefix];
   const suggested = parts.join('/');
   const branchName = await inputPrompt('Branch name', suggested);
   if (!branchName.trim()) { info('Cancelled.'); return; }
