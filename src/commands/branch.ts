@@ -6,11 +6,16 @@ import {
   deleteBranch,
   deleteRemoteBranch,
   getCurrentBranch,
+  getCommitsSinceBase,
   getUpstream,
   hasUncommittedChanges,
   isProtectedBranch,
   listBranches,
+  refExists,
   renameBranch,
+  resetHard,
+  stashPop,
+  stashSave,
   switchBranch,
 } from '../git/repo.js';
 import { blank, error, info, keyValue, section, success, warning } from '../ux/display.js';
@@ -37,12 +42,13 @@ export async function runBranch(): Promise<void> {
   const current = getCurrentBranch(cwd);
 
   await showMenu(`Branch Manager  (current: ${current})`, [
-    { key: '1', label: 'Create new branch',   action: () => createBranchFlow(cwd) },
-    { key: '2', label: 'Switch branch',        action: () => switchBranchFlow(cwd) },
-    { key: '3', label: 'List branches',        action: () => listBranchesFlow(cwd) },
-    { key: '4', label: 'Delete branch',        action: () => deleteBranchFlow(cwd) },
-    { key: '5', label: 'Rename current branch',action: () => renameBranchFlow(cwd) },
-    { key: '0', label: 'Back',                 action: async () => {} },
+    { key: '1', label: 'Create new branch',          action: () => createBranchFlow(cwd) },
+    { key: '2', label: 'Switch branch',               action: () => switchBranchFlow(cwd) },
+    { key: '3', label: 'List branches',               action: () => listBranchesFlow(cwd) },
+    { key: '4', label: 'Delete branch',               action: () => deleteBranchFlow(cwd) },
+    { key: '5', label: 'Rename current branch',       action: () => renameBranchFlow(cwd) },
+    { key: '6', label: 'Rescue commits → new branch', action: () => rescueCommitsFlow(cwd) },
+    { key: '0', label: 'Back',                        action: async () => {} },
   ]);
 }
 
@@ -270,6 +276,98 @@ async function renameBranchFlow(cwd: string): Promise<void> {
   } catch (e) {
     error(`Failed: ${(e as Error).message}`);
   }
+}
+
+// ── Rescue ─────────────────────────────────────────────────────────────────
+
+async function rescueCommitsFlow(cwd: string): Promise<void> {
+  section('Rescue Commits → Nueva Rama');
+
+  const current = getCurrentBranch(cwd);
+
+  // Determine the base reference to reset the current branch to after rescue
+  const upstream = getUpstream(cwd);
+  let rescueBase: string | undefined = upstream;
+
+  if (!rescueBase) {
+    for (const candidate of [`origin/${current}`, 'origin/main', 'origin/master']) {
+      if (refExists(candidate, cwd)) { rescueBase = candidate; break; }
+    }
+  }
+
+  // Get commits ahead of the base
+  const commits = rescueBase ? getCommitsSinceBase(rescueBase, cwd) : [];
+
+  if (commits.length === 0) {
+    info(`"${current}" no tiene commits pendientes de rescatar.`);
+    return;
+  }
+
+  info(`${commits.length} commit(s) en "${current}" que se moverán:`);
+  for (const c of commits) console.log(`  ● ${c}`);
+  blank();
+
+  if (!rescueBase) {
+    warning('No se encontró rama base en el remoto. Se creará la rama pero no se reseteará la original.');
+  }
+
+  // New branch name
+  const newBranch = await inputPrompt('Nombre de la nueva rama (ej. feature/mi-cambio)');
+  if (!newBranch.trim()) { info('Cancelado.'); return; }
+
+  if (!isValidBranchName(newBranch)) {
+    error(`"${newBranch}" no es un nombre de rama Git válido.`);
+    return;
+  }
+  if (branchExists(newBranch, cwd)) {
+    error(`La rama "${newBranch}" ya existe.`);
+    return;
+  }
+
+  // Create branch from current HEAD — carries all pending commits
+  try {
+    createBranch(newBranch, undefined, cwd);
+    success(`Rama "${newBranch}" creada con ${commits.length} commit(s).`);
+  } catch (e) {
+    error(`Error al crear la rama: ${(e as Error).message}`);
+    return;
+  }
+
+  // Offer to reset the original branch back to its base
+  if (rescueBase) {
+    blank();
+    const resetOriginal = await confirmPrompt(
+      `¿Resetear "${current}" a "${rescueBase}"? (borra los commits de esa rama)`,
+      false
+    );
+
+    if (resetOriginal) {
+      const hasChanges = hasUncommittedChanges(cwd);
+      if (hasChanges) {
+        info('Guardando cambios sin commitear...');
+        stashSave('gsf-rescue-temp', cwd);
+      }
+      try {
+        switchBranch(current, cwd);
+        resetHard(rescueBase, cwd);
+        success(`"${current}" reseteada a "${rescueBase}".`);
+      } catch (e) {
+        error(`Error al resetear: ${(e as Error).message}`);
+      }
+      if (hasChanges) {
+        stashPop(cwd);
+        info('Cambios sin commitear restaurados.');
+      }
+      switchBranch(newBranch, cwd);
+    }
+  }
+
+  blank();
+  keyValue('Nueva rama', newBranch);
+  keyValue('Commits rescatados', String(commits.length));
+  if (rescueBase) keyValue('Base', rescueBase);
+  blank();
+  info('Ejecuta  gsf push  para subir la nueva rama al remoto.');
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
   "name": "git-smart-flow",
   "version": "0.1.0",
   "description": "Interactive CLI to manage Git workflows guided, safe and smart",
+  "type": "module",
   "keywords": [
     "git",
     "cli",
@@ -35,22 +36,31 @@
     "smoke": "bash scripts/smoke-test.sh",
     "prepare-release": "tsx scripts/prepare-release.ts",
     "release": "release-it",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "asciichart": "^1.5.25",
+    "boxen": "^8.0.0",
     "chalk": "4.1.2",
     "clipboardy": "^4.0.0",
     "commander": "^12.0.0",
-    "enquirer": "^2.4.1",
     "execa": "^8.0.1",
+    "figlet": "^1.8.0",
     "globby": "^14.0.0",
+    "ink": "^5.0.0",
+    "ink-big-text": "^2.0.0",
+    "ink-gradient": "^3.0.0",
     "js-yaml": "^4.1.0",
-    "ora": "5.4.1"
+    "react": "^18.0.0"
   },
   "devDependencies": {
     "@release-it/conventional-changelog": "^8.0.0",
+    "@types/asciichart": "^1.5.3",
+    "@types/figlet": "^1.5.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
     "pkg": "^5.8.1",
     "release-it": "^17.0.0",
     "tsx": "^4.0.0",

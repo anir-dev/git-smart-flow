@@ -262,6 +262,22 @@ export async function buildRepoContext(
   };
 }
 
+export function refExists(ref: string, cwd = process.cwd()): boolean {
+  return gitSafe(['rev-parse', '--verify', ref], cwd) !== null;
+}
+
+export function stashSave(message: string, cwd = process.cwd()): void {
+  git(['stash', 'push', '-m', message], cwd);
+}
+
+export function stashPop(cwd = process.cwd()): void {
+  git(['stash', 'pop'], cwd);
+}
+
+export function resetHard(ref: string, cwd = process.cwd()): void {
+  git(['reset', '--hard', ref], cwd);
+}
+
 function parseStatus(char: string): StagedFile['status'] {
   const map: Record<string, StagedFile['status']> = {
     A: 'added', M: 'modified', D: 'deleted', R: 'renamed', C: 'copied',

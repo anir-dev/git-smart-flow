@@ -1,6 +1,9 @@
 import { createInterface } from 'readline';
+import { isCI } from './renderer.js';
 
-export async function selectPrompt(message: string, choices: string[]): Promise<string> {
+// ── Readline fallbacks (CI / no-TTY) ──────────────────────────────────────
+
+async function plainSelectPrompt(message: string, choices: string[]): Promise<string> {
   return new Promise((resolve) => {
     console.log(`\n${message}`);
     choices.forEach((c, i) => console.log(`  ${i + 1}. ${c}`));
@@ -13,7 +16,7 @@ export async function selectPrompt(message: string, choices: string[]): Promise<
   });
 }
 
-export async function confirmPrompt(message: string, defaultYes = true): Promise<boolean> {
+async function plainConfirmPrompt(message: string, defaultYes: boolean): Promise<boolean> {
   return new Promise((resolve) => {
     const hint = defaultYes ? '[Y/n]' : '[y/N]';
     const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -25,7 +28,7 @@ export async function confirmPrompt(message: string, defaultYes = true): Promise
   });
 }
 
-export async function inputPrompt(message: string, defaultValue?: string): Promise<string> {
+async function plainInputPrompt(message: string, defaultValue?: string): Promise<string> {
   return new Promise((resolve) => {
     const hint = defaultValue ? ` (${defaultValue})` : '';
     const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -36,23 +39,21 @@ export async function inputPrompt(message: string, defaultValue?: string): Promi
   });
 }
 
-export async function passwordPrompt(message: string): Promise<string> {
+async function plainPasswordPrompt(message: string): Promise<string> {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     process.stdout.write(`${message}: `);
     process.stdin.setRawMode?.(true);
-    let password = '';
-    process.stdin.once('data', function handler(data: Buffer) {
+    process.stdin.once('data', (data: Buffer) => {
       process.stdin.setRawMode?.(false);
       rl.close();
       process.stdout.write('\n');
-      password = data.toString().trim();
-      resolve(password);
+      resolve(data.toString().trim());
     });
   });
 }
 
-export async function multiselectPrompt(message: string, choices: string[]): Promise<string[]> {
+async function plainMultiselectPrompt(message: string, choices: string[]): Promise<string[]> {
   return new Promise((resolve) => {
     console.log(`\n${message} (comma-separated numbers, e.g. 1,3):`);
     choices.forEach((c, i) => console.log(`  ${i + 1}. ${c}`));
@@ -62,26 +63,199 @@ export async function multiselectPrompt(message: string, choices: string[]): Pro
       const selected = answer.split(',')
         .map((s) => parseInt(s.trim(), 10) - 1)
         .filter((i) => i >= 0 && i < choices.length)
-        .map((i) => choices[i]);
+        .map((i) => choices[i] as string);
       resolve(selected);
     });
   });
 }
 
-// ── Smart file selector ────────────────────────────────────────────────────
-// Always shows "Stage ALL" + directory grouping; flat list for ≤1 file.
+// ── Ink helper ─────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 30;
+async function ri<T>(factory: (resolve: (v: T) => void) => JSX.Element): Promise<T> {
+  const { renderInteractive } = await import('./renderer.js');
+  return renderInteractive<T>(factory);
+}
+
+// ── Public API (Ink for TTY, readline for CI) ──────────────────────────────
+
+export async function selectPrompt(message: string, choices: string[]): Promise<string> {
+  if (isCI()) return plainSelectPrompt(message, choices);
+  const React = (await import('react')).default;
+  const { useState, useEffect } = await import('react');
+  const { Box, Text } = await import('ink');
+  const { Select } = await import('@inkjs/ui');
+  const { theme } = await import('./theme.js');
+  const options = choices.map((c) => ({ label: c, value: c }));
+  return ri<string>((resolve) => {
+    function SelectPrompt(): JSX.Element {
+      const [active, setActive] = useState(false);
+      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+        React.createElement(Text, { bold: true, color: theme.muted }, message),
+        React.createElement(Text),
+        React.createElement(Select, { isDisabled: !active, options, onChange: resolve }),
+        React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar'),
+      ) as JSX.Element;
+    }
+    return React.createElement(SelectPrompt, null) as JSX.Element;
+  });
+}
+
+export async function confirmPrompt(message: string, defaultYes = true): Promise<boolean> {
+  if (isCI()) return plainConfirmPrompt(message, defaultYes);
+  const React = (await import('react')).default;
+  const { useState, useEffect } = await import('react');
+  const { Box, Text } = await import('ink');
+  const { ConfirmInput } = await import('@inkjs/ui');
+  const { theme } = await import('./theme.js');
+  return ri<boolean>((resolve) => {
+    function ConfirmPrompt(): JSX.Element {
+      const [active, setActive] = useState(false);
+      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+      return React.createElement(Box, { flexDirection: 'row', paddingX: 1 },
+        React.createElement(Text, { color: theme.muted }, message + '  '),
+        React.createElement(ConfirmInput, {
+          isDisabled: !active,
+          defaultChoice: defaultYes ? 'confirm' : 'cancel',
+          onConfirm: () => resolve(true),
+          onCancel: () => resolve(false),
+        }),
+      ) as JSX.Element;
+    }
+    return React.createElement(ConfirmPrompt, null) as JSX.Element;
+  });
+}
+
+export async function inputPrompt(message: string, defaultValue?: string): Promise<string> {
+  if (isCI()) return plainInputPrompt(message, defaultValue);
+  const React = (await import('react')).default;
+  const { useState, useEffect } = await import('react');
+  const { Box, Text } = await import('ink');
+  const { TextInput } = await import('@inkjs/ui');
+  const { theme } = await import('./theme.js');
+  return ri<string>((resolve) => {
+    function InputPrompt(): JSX.Element {
+      const [active, setActive] = useState(false);
+      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+        React.createElement(Text, { color: theme.muted },
+          message + (defaultValue ? `  (${defaultValue})` : '')
+        ),
+        React.createElement(TextInput, {
+          isDisabled: !active,
+          defaultValue: defaultValue ?? '',
+          placeholder: defaultValue ?? '',
+          onSubmit: (val: string) => resolve(val || defaultValue || ''),
+        }),
+      ) as JSX.Element;
+    }
+    return React.createElement(InputPrompt, null) as JSX.Element;
+  });
+}
+
+export async function passwordPrompt(message: string): Promise<string> {
+  if (isCI()) return plainPasswordPrompt(message);
+  const React = (await import('react')).default;
+  const { useState, useEffect } = await import('react');
+  const { Box, Text } = await import('ink');
+  const { PasswordInput } = await import('@inkjs/ui');
+  const { theme } = await import('./theme.js');
+  return ri<string>((resolve) => {
+    function PasswordPrompt(): JSX.Element {
+      const [active, setActive] = useState(false);
+      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+        React.createElement(Text, { color: theme.muted }, message),
+        React.createElement(PasswordInput, {
+          isDisabled: !active,
+          placeholder: '••••••••',
+          onSubmit: (val: string) => resolve(val),
+        }),
+      ) as JSX.Element;
+    }
+    return React.createElement(PasswordPrompt, null) as JSX.Element;
+  });
+}
+
+export async function multiselectPrompt(message: string, choices: string[]): Promise<string[]> {
+  if (isCI()) return plainMultiselectPrompt(message, choices);
+  const React = (await import('react')).default;
+  const { useState, useEffect } = await import('react');
+  const { Box, Text } = await import('ink');
+  const { MultiSelect } = await import('@inkjs/ui');
+  const { theme } = await import('./theme.js');
+  const options = choices.map((c) => ({ label: c, value: c }));
+  return ri<string[]>((resolve) => {
+    function MultiSelectPrompt(): JSX.Element {
+      const [active, setActive] = useState(false);
+      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+        React.createElement(Text, { bold: true, color: theme.muted }, message),
+        React.createElement(Text, { color: theme.muted }, '  Space seleccionar · Enter confirmar'),
+        React.createElement(MultiSelect, {
+          isDisabled: !active,
+          options,
+          visibleOptionCount: 15,
+          onSubmit: (values: string[]) => resolve(values),
+        }),
+      ) as JSX.Element;
+    }
+    return React.createElement(MultiSelectPrompt, null) as JSX.Element;
+  });
+}
+
+// ── Smart file selector ────────────────────────────────────────────────────
+// TTY: Ink MultiSelect. CI: directory-grouping readline flow.
 
 export async function smartFileSelectPrompt(message: string, files: string[]): Promise<string[]> {
   if (files.length === 0) return [];
+
   if (files.length === 1) {
-    // Single file: just confirm
-    const ok = await ask(`Stage "${files[0]}"? [Y/n] `);
-    return (!ok.trim() || ok.trim().toLowerCase() === 'y') ? [files[0]] : [];
+    const ok = await confirmPrompt(`Stage "${files[0]}"?`, true);
+    return ok ? [files[0]] : [];
   }
-  return directoryModeSelect(message, files);
+
+  if (isCI()) return directoryModeSelect(message, files);
+
+  const React = (await import('react')).default;
+  const { useState, useEffect } = await import('react');
+  const { Box, Text } = await import('ink');
+  const { MultiSelect } = await import('@inkjs/ui');
+  const { theme } = await import('./theme.js');
+
+  const options = [
+    { label: `★ Stage ALL (${files.length} files)`, value: '__ALL__' },
+    ...files.map((f) => ({ label: f, value: f })),
+  ];
+
+  return ri<string[]>((resolve) => {
+    function FileSelectPrompt(): JSX.Element {
+      const [active, setActive] = useState(false);
+      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+        React.createElement(Text, { bold: true, color: theme.muted },
+          `${message}  [${files.length} file(s)]`
+        ),
+        React.createElement(Text, { color: theme.muted }, '  Space seleccionar · Enter confirmar'),
+        React.createElement(MultiSelect, {
+          isDisabled: !active,
+          options,
+          visibleOptionCount: 20,
+          onSubmit: (values: string[]) => {
+            const selected = values.filter((v) => v !== '__ALL__');
+            if (values.includes('__ALL__')) resolve(files);
+            else if (selected.length > 0) resolve(selected);
+          },
+        }),
+      ) as JSX.Element;
+    }
+    return React.createElement(FileSelectPrompt, null) as JSX.Element;
+  });
 }
+
+// ── CI directory-mode selector (readline) ─────────────────────────────────
+
+const PAGE_SIZE = 30;
 
 function groupByTopDir(files: string[]): Map<string, string[]> {
   const map = new Map<string, string[]>();
@@ -131,17 +305,16 @@ async function directoryModeSelect(message: string, files: string[]): Promise<st
       selected.push(...picked);
       continue;
     }
-    if (!multiDir) continue; // only 'a' and 'f' are valid when there's one directory
+    if (!multiDir) continue;
     const idx = parseInt(token, 10) - 1;
     if (idx < 0 || idx >= dirs.length) continue;
     const [dirName, dirFiles] = dirs[idx];
 
     if (dirFiles.length <= 15) {
-      // Small directory: show files directly, no intermediate prompt
-      const picked = await multiselectPrompt(`Files in ${dirName} (${dirFiles.length})`, dirFiles);
+      const picked = await plainMultiselectPrompt(`Files in ${dirName} (${dirFiles.length})`, dirFiles);
       selected.push(...picked);
     } else {
-      const all = await confirmPrompt(`Stage all ${dirFiles.length} file(s) in ${dirName}?`, true);
+      const all = await plainConfirmPrompt(`Stage all ${dirFiles.length} file(s) in ${dirName}?`, true);
       if (all) {
         selected.push(...dirFiles);
       } else {
@@ -164,7 +337,7 @@ async function browseFilesPrompt(files: string[]): Promise<string[]> {
     const e = Math.min(s + PAGE_SIZE, files.length);
     console.log(`\nFiles ${s + 1}–${e} of ${files.length}  (page ${page + 1}/${total}):`);
     for (let i = s; i < e; i++) {
-      const mark = selected.has(files[i]) ? '✓' : ' ';
+      const mark = selected.has(files[i]!) ? '✓' : ' ';
       console.log(`  ${mark} ${String(i + 1).padStart(5)}.  ${files[i]}`);
     }
 
@@ -181,8 +354,9 @@ async function browseFilesPrompt(files: string[]): Promise<string[]> {
     for (const t of ans.split(',')) {
       const i = parseInt(t.trim(), 10) - 1;
       if (i >= 0 && i < files.length) {
-        if (selected.has(files[i])) selected.delete(files[i]);
-        else selected.add(files[i]);
+        const f = files[i]!;
+        if (selected.has(f)) selected.delete(f);
+        else selected.add(f);
       }
     }
   }

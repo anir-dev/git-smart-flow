@@ -1,9 +1,11 @@
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { getConfig } from '../config/config.js';
 import { detectConvention } from '../git/convention-detector.js';
 import {
   getAheadBehindCount,
+  buildRepoContext,
   getCurrentBranch,
   getLastCommit,
   getLastFetchTime,
@@ -15,21 +17,11 @@ import {
   hasMergeConflicts,
   isGitRepo,
 } from '../git/repo.js';
+import { isCI } from '../ux/renderer.js';
 import { blank, divider, error, header, info, keyValue, section, success, warning } from '../ux/display.js';
-import { showMenu } from '../ux/menu.js';
-import { runBranch } from './branch.js';
-import { runCommit } from './commit.js';
-import { runCommitMessage } from './commit-message.js';
-import { runConfig } from './config.js';
-import { runDoctor } from './doctor.js';
-import { runMerge } from './merge.js';
-import { runPR } from './pr.js';
-import { runPush } from './push.js';
-import { runValidate } from './validate.js';
-import { runAliases } from './aliases.js';
-import { runRepoInit } from './repo-init.js';
-import { runRevert } from './revert.js';
-import { runSync } from './sync.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ── Relative time helper ───────────────────────────────────────────────────
 
@@ -59,7 +51,6 @@ async function printStatus(cwd: string): Promise<void> {
     ? getAheadBehindCount(upstream, cwd)
     : { ahead: 0, behind: 0 };
 
-  // ── Context (original section — always shown) ──
   section('Context');
   keyValue('Repository', repoName);
   keyValue('Branch', branch);
@@ -68,10 +59,8 @@ async function printStatus(cwd: string): Promise<void> {
   keyValue('AI Provider', config.ai.provider);
   blank();
 
-  // ── Status (new section — live repo state) ──
   section('Status');
 
-  // Last commit
   if (lastCommit) {
     const msg = lastCommit.message.length > 50
       ? lastCommit.message.slice(0, 48) + '…'
@@ -79,7 +68,6 @@ async function printStatus(cwd: string): Promise<void> {
     keyValue('Last commit', `${lastCommit.shortSha}  "${msg}"  (${lastCommit.ago})`);
   }
 
-  // Remote sync
   if (upstream) {
     const parts: string[] = [];
     if (ahead > 0)  parts.push(`↑ ${ahead} to push`);
@@ -94,7 +82,6 @@ async function printStatus(cwd: string): Promise<void> {
     info('Remote: no upstream configured  →  option r');
   }
 
-  // Working tree
   const hasChanges = staged.length > 0 || modified.length > 0 || untracked.length > 0 || conflicts;
   if (hasChanges) {
     const parts: string[] = [];
@@ -110,7 +97,6 @@ async function printStatus(cwd: string): Promise<void> {
     success('Working tree: clean');
   }
 
-  // Actionable hints
   const hints: string[] = [];
   if (conflicts)          hints.push('✖ Conflicts detected → option 7 (merge) or u (undo)');
   if (staged.length > 0) hints.push(`● ${staged.length} staged → option 2 to commit`);
@@ -125,6 +111,97 @@ async function printStatus(cwd: string): Promise<void> {
   }
 
   blank();
+}
+
+// ── Ink-based interactive menu (TTY) ──────────────────────────────────────
+
+async function runInkMenu(pkg: { version: string }): Promise<void> {
+  const { renderInteractive } = await import('../ux/renderer.js');
+  const React = (await import('react')).default;
+  const { useState, useEffect } = await import('react');
+  const { Select } = await import('@inkjs/ui');
+  const { Box, Text } = await import('ink');
+  const { theme } = await import('../ux/theme.js');
+  const { StatusDashboard } = await import('../ux/components/StatusDashboard.js');
+
+  const cwd = process.cwd();
+  const config = getConfig();
+  const convention = await detectConvention(cwd);
+  const ctx = await buildRepoContext(
+    config.git.protectedBranches,
+    config.commit.ticketPattern,
+    convention,
+    cwd
+  );
+  const lastCommit = getLastCommit(cwd);
+  const lastFetch = getLastFetchTime(cwd);
+
+  const options = [
+    { label: '📌  Branch manager (create, switch, delete…)', value: '1' },
+    { label: '✏️   Crear commit asistido', value: '2' },
+    { label: '💬  Generar mensaje de commit (sin commit)', value: '3' },
+    { label: '📋  Generar descripción de PR', value: '4' },
+    { label: '🔍  Validar repositorio', value: '5' },
+    { label: '🚀  Push validado', value: '6' },
+    { label: '🔄  Sync con remote', value: 's' },
+    { label: '🔀  Merge asistido', value: '7' },
+    { label: '↩️   Undo / revert wizard', value: 'u' },
+    { label: '📈  Ver historial de commits', value: 'l' },
+    { label: '⚙️   Configuración', value: '8' },
+    { label: '🔗  Aliases & hooks', value: '9' },
+    { label: '📁  Repository setup wizard', value: 'r' },
+    { label: '🩺  Diagnóstico (doctor)', value: 'd' },
+    { label: '❌  Salir', value: '0' },
+  ];
+
+  function MenuApp({ onSelect }: { onSelect: (val: string) => void }): JSX.Element {
+    const [active, setActive] = useState(false);
+    useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+    return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+      React.createElement(StatusDashboard, {
+        ctx,
+        lastCommit,
+        lastFetch,
+        version: pkg.version,
+        provider: config.ai.provider,
+        cwd,
+        graphLimit: 3,
+      }),
+      React.createElement(Box, { flexDirection: 'column', borderStyle: 'round', borderColor: theme.border, paddingX: 1, marginBottom: 1 },
+        React.createElement(Text, { bold: true, color: theme.muted }, '¿Qué quieres hacer?'),
+        React.createElement(Text, { color: theme.muted }, ''),
+        React.createElement(Select, { isDisabled: !active, options, onChange: onSelect })
+      ),
+      React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar')
+    );
+  }
+
+  const choice = await renderInteractive<string>((resolve) =>
+    React.createElement(MenuApp, { onSelect: resolve }) as JSX.Element
+  );
+
+  await handleChoice(choice);
+}
+
+async function handleChoice(choice: string): Promise<void> {
+  switch (choice) {
+    case '1': { const { runBranch } = await import('./branch.js'); await runBranch(); break; }
+    case '2': { const { runCommit } = await import('./commit.js'); await runCommit(); break; }
+    case '3': { const { runCommitMessage } = await import('./commit-message.js'); await runCommitMessage({}); break; }
+    case '4': { const { runPR } = await import('./pr.js'); await runPR(); break; }
+    case '5': { const { runValidate } = await import('./validate.js'); await runValidate(); break; }
+    case '6': { const { runPush } = await import('./push.js'); await runPush(); break; }
+    case 's': { const { runSync } = await import('./sync.js'); await runSync(); break; }
+    case '7': { const { runMerge } = await import('./merge.js'); await runMerge(); break; }
+    case 'u': { const { runRevert } = await import('./revert.js'); await runRevert(); break; }
+    case 'l': { const { runLog } = await import('./log.js'); await runLog(); break; }
+    case '8': { const { runConfig } = await import('./config.js'); await runConfig(); break; }
+    case '9': { const { runAliases } = await import('./aliases.js'); await runAliases(); break; }
+    case 'r': { const { runRepoInit } = await import('./repo-init.js'); await runRepoInit(); break; }
+    case 'd': { const { runDoctor } = await import('./doctor.js'); await runDoctor(); break; }
+    case '0': process.exit(0); break;
+    default: info('Unknown option.'); break;
+  }
 }
 
 // ── Help screen ────────────────────────────────────────────────────────────
@@ -155,43 +232,34 @@ async function showHelp(): Promise<void> {
     console.log(`  ${cmd.padEnd(24)}  ${desc}`);
   }
   blank();
-  console.log('  Flags available on some commands:');
-  console.log('    --no-ai        Force heuristic provider (no AI)');
-  console.log('    --show-prompt  Show AI prompt before sending');
-  console.log('    --output-only  Print result to stdout only');
-  blank();
 }
 
-// ── Main menu ──────────────────────────────────────────────────────────────
+// ── CI / plain menu ────────────────────────────────────────────────────────
 
-export async function runMenu(): Promise<void> {
-  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string };
+async function runPlainMenu(pkg: { version: string }): Promise<void> {
   header('', pkg.version);
-
   const cwd = process.cwd();
-
   if (isGitRepo(cwd)) {
     await printStatus(cwd);
   } else {
-    info('Not a Git repository — run option r to initialize one.');
+    info('Not a Git repository.');
     blank();
   }
+  await showHelp();
+}
 
-  await showMenu('What do you want to do?', [
-    { key: '1', label: 'Branch manager (create, switch, delete…)', action: runBranch },
-    { key: '2', label: 'Guided commit assistant',                   action: runCommit },
-    { key: '3', label: 'Generate commit message (no commit)',       action: () => runCommitMessage({}) },
-    { key: '4', label: 'Generate PR description',                   action: runPR },
-    { key: '5', label: 'Validate repository',                       action: runValidate },
-    { key: '6', label: 'Push (validated)',                          action: runPush },
-    { key: 's', label: 'Sync with remote (fetch + pull + conflicts)',action: runSync },
-    { key: '7', label: 'Merge assistant',                           action: runMerge },
-    { key: 'u', label: 'Undo / revert wizard',                      action: runRevert },
-    { key: '8', label: 'Configuration',                             action: runConfig },
-    { key: '9', label: 'Aliases & hooks',                           action: runAliases },
-    { key: 'r', label: 'Repository setup wizard',                   action: runRepoInit },
-    { key: 'd', label: 'Diagnostic (doctor)',                       action: runDoctor },
-    { key: 'h', label: 'Help — show all CLI commands',              action: showHelp },
-    { key: '0', label: 'Exit',                                      action: async () => process.exit(0) },
-  ]);
+// ── Entry point ────────────────────────────────────────────────────────────
+
+export async function runMenu(): Promise<void> {
+  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string };
+
+  if (isCI()) {
+    await runPlainMenu(pkg);
+    return;
+  }
+
+  // Loop: after each action the menu re-renders with fresh repo data
+  while (true) {
+    await runInkMenu(pkg);
+  }
 }
