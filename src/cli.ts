@@ -174,4 +174,12 @@ program
     await runLog();
   });
 
+program
+  .command('stash')
+  .description('Stash manager: save, list, apply, drop')
+  .action(async () => {
+    const { runStash } = await import('./commands/stash.js');
+    await runStash();
+  });
+
 program.parse(process.argv);

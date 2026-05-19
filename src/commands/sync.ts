@@ -10,6 +10,7 @@ import {
   getUpstream,
   hasMergeConflicts,
 } from '../git/repo.js';
+import { getConfig } from '../config/config.js';
 import { blank, error, info, keyValue, section, success, warning } from '../ux/display.js';
 import { confirmPrompt, selectPrompt } from '../ux/prompt.js';
 import { failSpinner, startSpinner, succeedSpinner } from '../ux/spinner.js';
@@ -42,6 +43,16 @@ function getOutgoingCommits(upstream: string, cwd: string): string[] {
 export async function runSync(): Promise<void> {
   const cwd = process.cwd();
   if (!(await ensureGitRepo(cwd))) return;
+
+  const config = getConfig();
+  const autoFetch = (config.git as Record<string, unknown>).autoFetch as boolean | undefined;
+  if (autoFetch !== false) {
+    const thresholdMinutes = (config.git as Record<string, unknown>).autoFetchIntervalMinutes as number | undefined ?? 5;
+    const lastFetch = getLastFetchTime(cwd);
+    if (!lastFetch || (Date.now() - lastFetch.getTime()) / 60000 >= thresholdMinutes) {
+      spawnSync('git', ['fetch', '--quiet', '--prune'], { cwd, stdio: 'pipe', timeout: 10000 });
+    }
+  }
 
   const upstream = getUpstream(cwd);
   if (!upstream) {
@@ -116,10 +127,12 @@ export async function runSync(): Promise<void> {
   if (behind > 0 && ahead === 0) {
     options.push('Pull (fast-forward) — bring in remote commits');
     options.push('Pull (rebase) — bring in remote commits, reapply mine on top  [clean history]');
+    options.push('Actualizar rama del PR (gh pr update-branch)');
   } else if (behind > 0 && ahead > 0) {
     options.push('Pull (merge) — merge remote commits, keep both histories');
     options.push('Pull (rebase) — reapply my commits on top of remote  [clean history]');
     options.push('Push first, then pull — only if remote allows force push');
+    options.push('Actualizar rama del PR (gh pr update-branch)');
   } else if (behind === 0 && ahead > 0) {
     options.push('Push my commits to remote');
   }
@@ -149,6 +162,65 @@ export async function runSync(): Promise<void> {
         error('Push failed.');
       }
     }
+  } else if (choice.startsWith('Actualizar rama del PR')) {
+    await runPRUpdateBranch(cwd);
+  }
+}
+
+// ── PR Update Branch ──────────────────────────────────────────────────────
+
+async function runPRUpdateBranch(cwd: string): Promise<void> {
+  const ghResult = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' });
+  if (ghResult.status !== 0) {
+    error('Esta opción requiere GitHub CLI (gh) autenticado.');
+    info('  Instala: https://cli.github.com  |  Luego: gh auth login');
+    return;
+  }
+
+  const prResult = spawnSync('gh', ['pr', 'view', '--json', 'number,title,baseRefName'], {
+    cwd,
+    encoding: 'utf-8',
+    stdio: 'pipe',
+  });
+
+  if (prResult.status !== 0) {
+    warning('No se encontró un PR abierto para esta rama.');
+    return;
+  }
+
+  let prData: { number: number; title: string; baseRefName: string };
+  try {
+    prData = JSON.parse(prResult.stdout) as typeof prData;
+  } catch {
+    error('Error al obtener información del PR.');
+    return;
+  }
+
+  keyValue('PR', `#${prData.number} ${prData.title}`);
+  keyValue('Base', prData.baseRefName);
+  blank();
+
+  const strategy = await selectPrompt('¿Cómo actualizar la rama del PR?', [
+    'Merge (merge de la base en esta rama)',
+    'Rebase (rebase sobre la base)',
+    '← Cancelar',
+  ]);
+
+  if (strategy.includes('Cancelar')) return;
+
+  const rebaseFlag = strategy.startsWith('Rebase') ? ['--rebase'] : [];
+
+  startSpinner('Actualizando rama del PR...');
+  const updateResult = spawnSync(
+    'gh',
+    ['pr', 'update-branch', String(prData.number), ...rebaseFlag],
+    { cwd, encoding: 'utf-8', stdio: 'pipe' }
+  );
+
+  if (updateResult.status === 0) {
+    succeedSpinner('Rama del PR actualizada. Ejecuta "gsf sync" de nuevo para obtener los cambios.');
+  } else {
+    failSpinner('Error al actualizar: ' + (updateResult.stderr ?? ''));
   }
 }
 

@@ -299,8 +299,61 @@ export function stashPop(cwd = process.cwd()): void {
   git(['stash', 'pop'], cwd);
 }
 
+export interface StashEntry {
+  index: number;
+  ref: string;
+  message: string;
+  ago: string;
+}
+
+export function stashList(cwd = process.cwd()): StashEntry[] {
+  const out = gitSafe(['stash', 'list', '--format=%gd\x1f%s\x1f%ar'], cwd) ?? '';
+  if (!out) return [];
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .map((line, index) => {
+      const [ref, message, ago] = line.split('\x1f');
+      return {
+        index,
+        ref: ref ?? `stash@{${index}}`,
+        message: message ?? 'Sin título',
+        ago: ago ?? '',
+      };
+    });
+}
+
+export function stashApplyRef(ref: string, cwd = process.cwd()): void {
+  git(['stash', 'apply', ref], cwd);
+}
+
+export function stashPopRef(ref: string, cwd = process.cwd()): void {
+  git(['stash', 'pop', ref], cwd);
+}
+
+export function stashDropRef(ref: string, cwd = process.cwd()): void {
+  git(['stash', 'drop', ref], cwd);
+}
+
 export function resetHard(ref: string, cwd = process.cwd()): void {
   git(['reset', '--hard', ref], cwd);
+}
+
+export function detectGhCli(): boolean {
+  const result = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' });
+  return result.status === 0;
+}
+
+export function autoFetchIfStale(thresholdMinutes: number, cwd = process.cwd()): void {
+  const lastFetch = getLastFetchTime(cwd);
+  if (!lastFetch) {
+    spawnSync('git', ['fetch', '--quiet', '--prune'], { cwd, stdio: 'pipe', timeout: 10000 });
+    return;
+  }
+  const ageMinutes = (Date.now() - lastFetch.getTime()) / 60000;
+  if (ageMinutes >= thresholdMinutes) {
+    spawnSync('git', ['fetch', '--quiet', '--prune'], { cwd, stdio: 'pipe', timeout: 10000 });
+  }
 }
 
 function parseStatus(char: string): StagedFile['status'] {

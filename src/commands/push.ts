@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { getConfig } from '../config/config.js';
 import { ensureGitRepo } from '../git/ensure-repo.js';
 import { validateBranchName } from '../git/validate.js';
@@ -11,7 +11,61 @@ import {
 } from '../git/repo.js';
 import { isCI } from '../ux/renderer.js';
 import { blank, error, info, keyValue, section, success, warning } from '../ux/display.js';
-import { confirmPrompt } from '../ux/prompt.js';
+import { confirmPrompt, inputPrompt, selectPrompt } from '../ux/prompt.js';
+
+interface RunOptions {
+  dryRun?: boolean;
+  yes?: boolean;
+}
+
+async function handleDivergedPush(
+  branch: string,
+  upstream: string | undefined,
+  cwd: string,
+  opts: RunOptions
+): Promise<void> {
+  warning('Tu rama local y el remoto han divergido.');
+  info('Esto ocurre normalmente después de un rebase o de enmendar commits ya publicados.');
+  blank();
+
+  if (upstream) {
+    const { ahead, behind } = getAheadBehindCount(upstream, cwd);
+    keyValue('Commits locales no publicados', String(ahead));
+    keyValue('Commits remotos no en local', String(behind));
+  }
+  blank();
+
+  const action = await selectPrompt('¿Qué quieres hacer?', [
+    'Force push (--force-with-lease)  — sobreescribir el remoto',
+    'Cancelar — resolver manualmente',
+  ]);
+
+  if (!action.startsWith('Force')) {
+    info('Push cancelado. Para resolver manualmente:');
+    info('  git pull --rebase  — trae los cambios remotos y reaplica los tuyos');
+    return;
+  }
+
+  warning('⚠  OPERACIÓN DESTRUCTIVA — Reescribirá la historia del remoto');
+  warning('Esto puede afectar a otros colaboradores que tengan esta rama.');
+  blank();
+
+  const confirm = opts.yes
+    ? branch
+    : await inputPrompt(`Escribe el nombre de la rama para confirmar: "${branch}"`);
+
+  if (confirm.trim() !== branch) {
+    info('Confirmación incorrecta. Force push cancelado.');
+    return;
+  }
+
+  const forceResult = spawnSync('git', ['push', '--force-with-lease'], { cwd, encoding: 'utf-8', stdio: 'pipe' });
+  if (forceResult.status === 0) {
+    success('Force push completado (--force-with-lease).');
+  } else {
+    error('Force push fallido:\n' + (forceResult.stderr ?? ''));
+  }
+}
 
 async function runInkPush(): Promise<void> {
   const React = (await import('react')).default;
@@ -33,7 +87,6 @@ async function runInkPush(): Promise<void> {
   const { ahead, behind } = upstream ? getAheadBehindCount(upstream, cwd) : { ahead: 0, behind: 0 };
   const isProtected = isProtectedBranch(branch, config.git.protectedBranches);
 
-  // Get recent commits to show
   const recentCommits = upstream ? getCommitsSinceBase(upstream, cwd).slice(0, 5) : [];
 
   if (ahead === 0 && upstream) {
@@ -66,7 +119,6 @@ async function runInkPush(): Promise<void> {
       React.createElement(Text, { color: theme.muted }, '━'.repeat(Math.min(width - 4, 40))),
       React.createElement(Text, null),
 
-      // Summary box
       React.createElement(
         Box,
         {
@@ -109,7 +161,6 @@ async function runInkPush(): Promise<void> {
           : null
       ),
 
-      // Commit list
       recentCommits.length > 0
         ? React.createElement(
             Box,
@@ -135,19 +186,28 @@ async function runInkPush(): Promise<void> {
     return;
   }
 
+  const opts: RunOptions = {};
   try {
-    const pushArgs = upstream ? '' : `--set-upstream origin ${branch}`;
-    execSync(`git push ${pushArgs}`.trim(), { cwd, stdio: 'inherit' });
-    success('Push completado.');
+    const pushArgs = upstream ? [] : ['--set-upstream', 'origin', branch];
+    const result = spawnSync('git', ['push', ...pushArgs], { cwd, encoding: 'utf-8', stdio: 'pipe' });
+    if (result.status === 0) {
+      success('Push completado.');
+    } else {
+      const stderr = (result.stderr ?? '').toString();
+      const isDiverged =
+        stderr.includes('rejected') &&
+        (stderr.includes('non-fast-forward') ||
+          stderr.includes('fetch first') ||
+          stderr.includes('Updates were rejected'));
+      if (isDiverged) {
+        await handleDivergedPush(branch, upstream, cwd, opts);
+      } else {
+        error('git push failed:\n' + stderr);
+      }
+    }
   } catch {
     error('git push failed.');
-    process.exit(1);
   }
-}
-
-interface RunOptions {
-  dryRun?: boolean;
-  yes?: boolean;
 }
 
 async function runPlainPush(opts: RunOptions = {}): Promise<void> {
@@ -197,12 +257,25 @@ async function runPlainPush(opts: RunOptions = {}): Promise<void> {
   }
 
   try {
-    const pushArgs = upstream ? '' : '--set-upstream origin ' + branch;
-    execSync(`git push ${pushArgs}`.trim(), { cwd, stdio: 'inherit' });
-    success('Push completed.');
+    const pushArgs = upstream ? [] : ['--set-upstream', 'origin', branch];
+    const result = spawnSync('git', ['push', ...pushArgs], { cwd, encoding: 'utf-8', stdio: 'pipe' });
+    if (result.status === 0) {
+      success('Push completed.');
+    } else {
+      const stderr = (result.stderr ?? '').toString();
+      const isDiverged =
+        stderr.includes('rejected') &&
+        (stderr.includes('non-fast-forward') ||
+          stderr.includes('fetch first') ||
+          stderr.includes('Updates were rejected'));
+      if (isDiverged) {
+        await handleDivergedPush(branch, upstream, cwd, opts);
+      } else {
+        error('git push failed:\n' + stderr);
+      }
+    }
   } catch {
     error('git push failed.');
-    process.exit(1);
   }
 }
 

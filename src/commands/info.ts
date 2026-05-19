@@ -1,4 +1,5 @@
 import { readFileSync } from 'fs';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { getConfig } from '../config/config.js';
@@ -13,7 +14,7 @@ import {
   getUpstream,
 } from '../git/repo.js';
 import { isCI } from '../ux/renderer.js';
-import { blank, divider, keyValue, section } from '../ux/display.js';
+import { blank, divider, info, keyValue, section } from '../ux/display.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -140,6 +141,60 @@ async function runPlainInfo(cwd: string): Promise<void> {
   if (convention.allowedTypes.length > 0) {
     section('Allowed Commit Types');
     console.log('  ' + convention.allowedTypes.join(', '));
+    blank();
+  }
+
+  const ghAvailableResult = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' });
+  if (ghAvailableResult.status === 0) {
+    blank();
+    section('Pull Request');
+    const prResult = spawnSync(
+      'gh',
+      ['pr', 'view', '--json', 'number,title,state,url,baseRefName,statusCheckRollup,reviewDecision'],
+      { cwd, encoding: 'utf-8', stdio: 'pipe' }
+    );
+    if (prResult.status === 0 && prResult.stdout) {
+      try {
+        const pr = JSON.parse(prResult.stdout) as {
+          number: number;
+          title: string;
+          state: string;
+          url: string;
+          baseRefName: string;
+          statusCheckRollup: Array<{ state: string }> | null;
+          reviewDecision: string | null;
+        };
+        keyValue('PR', `#${pr.number} ${pr.title}`);
+        keyValue('Base', pr.baseRefName);
+        keyValue('URL', pr.url);
+
+        const checks = pr.statusCheckRollup ?? [];
+        const passed = checks.filter(c => c.state === 'SUCCESS').length;
+        const failed = checks.filter(c => c.state === 'FAILURE' || c.state === 'ERROR').length;
+        const pending = checks.filter(c => c.state === 'PENDING' || c.state === 'IN_PROGRESS').length;
+
+        if (checks.length > 0) {
+          const checkStatus = failed > 0
+            ? `❌ ${failed} fallando`
+            : pending > 0
+              ? `⏳ ${pending} en progreso`
+              : `✅ ${passed}/${checks.length} pasados`;
+          keyValue('CI Checks', checkStatus);
+        }
+
+        if (pr.reviewDecision) {
+          const reviewStatus = pr.reviewDecision === 'APPROVED' ? '✅ Aprobado'
+            : pr.reviewDecision === 'CHANGES_REQUESTED' ? '🔄 Cambios requeridos'
+            : pr.reviewDecision === 'REVIEW_REQUIRED' ? '🔍 Review pendiente'
+            : pr.reviewDecision;
+          keyValue('Review', reviewStatus);
+        }
+      } catch {
+        info('Error al parsear datos del PR.');
+      }
+    } else {
+      info('Sin PR abierto para esta rama.');
+    }
     blank();
   }
 

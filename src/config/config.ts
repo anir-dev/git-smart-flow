@@ -23,6 +23,9 @@ export const DEFAULT_CONFIG: GlobalConfig = {
   git: {
     protectedBranches: ['main', 'master', 'develop'],
     defaultBaseBranches: ['develop', 'main', 'master'],
+    githubIntegration: false,
+    autoFetch: false,
+    autoFetchIntervalMinutes: 5,
   },
   commit: {
     convention: 'conventional',

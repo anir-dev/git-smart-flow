@@ -84,6 +84,9 @@ export interface GlobalConfig {
   git: {
     protectedBranches: string[];
     defaultBaseBranches: string[];
+    githubIntegration?: boolean;
+    autoFetch?: boolean;
+    autoFetchIntervalMinutes?: number;
   };
   commit: {
     convention: ConventionType;

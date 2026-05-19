@@ -1,5 +1,7 @@
 import { spawnSync } from 'child_process';
 import { ensureGitRepo } from '../git/ensure-repo.js';
+import { section, info, blank } from '../ux/display.js';
+import { selectPrompt, inputPrompt } from '../ux/prompt.js';
 import { isCI } from '../ux/renderer.js';
 
 async function runInkLog(cwd: string): Promise<void> {
@@ -31,7 +33,6 @@ async function runInkLog(cwd: string): Promise<void> {
   }
 
   const { unmount } = render(React.createElement(LogView, null) as JSX.Element);
-  // Allow useEffect (synchronous spawnSync inside) and state re-render to complete
   await new Promise<void>((r) =>
     setTimeout(() => {
       unmount();
@@ -45,13 +46,67 @@ function runPlainLog(cwd: string): void {
   spawnSync('git', ['log', '--graph', '--oneline', '--all', '-25'], { cwd, stdio: 'inherit' });
 }
 
+async function runFilteredLog(cwd: string): Promise<void> {
+  section('Filtrar historial de commits');
+  blank();
+
+  const author = await inputPrompt('Autor (Enter para omitir)');
+  const since = await inputPrompt('Desde fecha (ej: "2024-01-01", "1 week ago", Enter para omitir)');
+  const until = await inputPrompt('Hasta fecha (ej: "2024-12-31", Enter para omitir)');
+  const path = await inputPrompt('Fichero/directorio (Enter para omitir)');
+  const grep = await inputPrompt('Buscar en mensaje (Enter para omitir)');
+
+  const args: string[] = ['log', '--oneline', '--graph', '-50'];
+  if (author.trim()) args.push(`--author=${author.trim()}`);
+  if (since.trim()) args.push(`--since=${since.trim()}`);
+  if (until.trim()) args.push(`--until=${until.trim()}`);
+  if (grep.trim()) args.push(`--grep=${grep.trim()}`);
+  if (path.trim()) args.push('--', path.trim());
+
+  blank();
+  section('Resultados');
+
+  const result = spawnSync('git', args, { cwd, encoding: 'utf-8', stdio: 'pipe' });
+  if (!result.stdout?.trim()) {
+    info('No se encontraron commits con los filtros aplicados.');
+    return;
+  }
+
+  const filters: string[] = [];
+  if (author.trim()) filters.push(`autor: ${author}`);
+  if (since.trim()) filters.push(`desde: ${since}`);
+  if (until.trim()) filters.push(`hasta: ${until}`);
+  if (path.trim()) filters.push(`path: ${path}`);
+  if (grep.trim()) filters.push(`mensaje: ${grep}`);
+  if (filters.length > 0) {
+    info('Filtros: ' + filters.join(' · '));
+    blank();
+  }
+
+  const lines = result.stdout.split('\n').filter(Boolean);
+  lines.forEach((line) => console.log(line));
+  blank();
+  info(`${lines.length} resultado(s)`);
+}
+
 export async function runLog(): Promise<void> {
   const cwd = process.cwd();
   if (!(await ensureGitRepo(cwd))) return;
 
   if (isCI()) {
     runPlainLog(cwd);
-  } else {
+    return;
+  }
+
+  const choice = await selectPrompt('¿Qué quieres ver?', [
+    'Ver historial completo',
+    'Filtrar historial',
+    'Salir',
+  ]);
+
+  if (choice === 'Ver historial completo') {
     await runInkLog(cwd);
+  } else if (choice === 'Filtrar historial') {
+    await runFilteredLog(cwd);
   }
 }

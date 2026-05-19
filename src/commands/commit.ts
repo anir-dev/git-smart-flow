@@ -1,15 +1,19 @@
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { getConfig } from '../config/config.js';
 import { buildAIContext } from '../git/ai-context-builder.js';
 import { detectConvention } from '../git/convention-detector.js';
 import { ensureGitRepo } from '../git/ensure-repo.js';
 import {
   extractTicketFromBranch,
+  getAheadBehindCount,
   getCurrentBranch,
+  getLastCommit,
   getRepoName,
   getStagedFiles,
   getUnstagedFiles,
   getUntrackedFiles,
+  getUpstream,
+  hasCommits,
   isProtectedBranch,
   stageFiles,
   unstageAll,
@@ -95,6 +99,87 @@ export async function guidedMessageBuilder(current?: string): Promise<string | n
   if (isBreaking && breakingNote.trim()) parts.push('\nBREAKING CHANGE: ' + breakingNote.trim());
 
   return parts.join('\n');
+}
+
+// ── Amend last commit flow ─────────────────────────────────────────────────
+
+async function amendFlow(cwd: string): Promise<void> {
+  const lastCommit = getLastCommit(cwd);
+  if (!lastCommit) {
+    info('No hay commits anteriores para enmendar.');
+    return;
+  }
+
+  const upstream = getUpstream(cwd);
+  if (upstream) {
+    const { ahead } = getAheadBehindCount(upstream, cwd);
+    if (ahead === 0) {
+      warning('⚠️  Este commit ya está publicado en el remoto.');
+      console.log('  Enmendarlo reescribirá la historia y requerirá --force-with-lease.');
+      const proceed = await confirmPrompt('¿Continuar de todas formas?', false);
+      if (!proceed) {
+        info('Amend cancelado.');
+        return;
+      }
+    }
+  }
+
+  section(`Último commit: ${lastCommit.shortSha} — ${lastCommit.message}`);
+
+  const amendChoice = await selectPrompt('¿Qué quieres enmendar?', [
+    'Solo el mensaje del commit',
+    'Añadir ficheros staged + cambiar mensaje',
+    'Solo añadir ficheros staged (mantener mensaje)',
+    'Cancelar',
+  ]);
+
+  if (amendChoice === 'Cancelar') {
+    info('Amend cancelado.');
+    return;
+  }
+
+  const changeMessage =
+    amendChoice === 'Solo el mensaje del commit' ||
+    amendChoice === 'Añadir ficheros staged + cambiar mensaje';
+  const addFiles =
+    amendChoice === 'Añadir ficheros staged + cambiar mensaje' ||
+    amendChoice === 'Solo añadir ficheros staged (mantener mensaje)';
+
+  if (addFiles) {
+    const unstaged = getUnstagedFiles(cwd);
+    const untracked = getUntrackedFiles(cwd);
+    const available = [...unstaged, ...untracked];
+    if (available.length === 0) {
+      info('No hay ficheros sin stagear para añadir.');
+      if (!changeMessage) return;
+    } else {
+      const toStage = await smartFileSelectPrompt('Selecciona ficheros para añadir al amend', available);
+      if (toStage.length > 0) {
+        stageFiles(toStage, cwd);
+      }
+    }
+  }
+
+  if (changeMessage) {
+    const newMessage = await guidedMessageBuilder(lastCommit.message);
+    if (!newMessage) {
+      info('Amend cancelado — no se proporcionó mensaje.');
+      return;
+    }
+    const result = spawnSync('git', ['commit', '--amend', '-m', newMessage], { cwd, stdio: 'inherit' });
+    if (result.status !== 0) {
+      error('git commit --amend falló.');
+      return;
+    }
+  } else {
+    const result = spawnSync('git', ['commit', '--amend', '--no-edit'], { cwd, stdio: 'inherit' });
+    if (result.status !== 0) {
+      error('git commit --amend falló.');
+      return;
+    }
+  }
+
+  success('Commit enmendado correctamente.');
 }
 
 // ── Ink-based commit flow (TTY) ────────────────────────────────────────────
@@ -430,6 +515,33 @@ async function runInkCommit(): Promise<void> {
     }
   }
 
+  // If there are no files whatsoever, offer amend before entering Ink
+  {
+    const unstaged = getUnstagedFiles(cwd);
+    const untracked = getUntrackedFiles(cwd);
+    if (initialStaged.length === 0 && unstaged.length === 0 && untracked.length === 0) {
+      if (hasCommits(cwd)) {
+        info('No hay ficheros staged.');
+        blank();
+        const noStagedChoice = await selectPrompt('¿Qué quieres hacer?', [
+          'Seleccionar ficheros para nuevo commit',
+          'Enmendar el último commit',
+          'Cancelar',
+        ]);
+        if (noStagedChoice === 'Enmendar el último commit') {
+          await amendFlow(cwd);
+          return;
+        }
+        if (noStagedChoice === 'Cancelar') {
+          info('Commit cancelado.');
+          return;
+        }
+        info('No hay ficheros disponibles para stagear.');
+        return;
+      }
+    }
+  }
+
   await renderInteractive<void>(
     (resolve) => React.createElement(CommitFlow, { onDone: resolve }) as JSX.Element
   );
@@ -491,7 +603,26 @@ async function runPlainCommit(): Promise<void> {
   if (staged.length === 0) {
     const available = [...unstaged, ...untracked];
     if (available.length === 0) {
-      info('No changes to commit.');
+      if (hasCommits(cwd)) {
+        info('No hay ficheros staged.');
+        blank();
+        const noStagedChoice = await selectPrompt('¿Qué quieres hacer?', [
+          'Seleccionar ficheros para nuevo commit',
+          'Enmendar el último commit',
+          'Cancelar',
+        ]);
+        if (noStagedChoice === 'Enmendar el último commit') {
+          await amendFlow(cwd);
+          return;
+        }
+        if (noStagedChoice === 'Cancelar') {
+          info('Commit cancelado.');
+          return;
+        }
+        info('No hay ficheros disponibles para stagear.');
+      } else {
+        info('No changes to commit.');
+      }
       return;
     }
     const toStage = await smartFileSelectPrompt('Select files to stage', available);
