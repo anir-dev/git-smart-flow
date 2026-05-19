@@ -30,6 +30,7 @@ const DEFAULT_CONVENTION: CommitConvention = {
   hasHusky: false,
 };
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function detectConvention(cwd = process.cwd()): Promise<CommitConvention> {
   const convention = { ...DEFAULT_CONVENTION };
 
@@ -46,7 +47,7 @@ export async function detectConvention(cwd = process.cwd()): Promise<CommitConve
   }
 
   if (!commitlintResult) {
-    const historyConvention = await inferFromHistory(cwd);
+    const historyConvention = inferFromHistory(cwd);
     if (historyConvention) {
       convention.type = historyConvention;
     }
@@ -157,7 +158,7 @@ function parseCommitlintYaml(raw: string): Partial<CommitConvention> {
     result.allowedTypes = CONVENTIONAL_TYPES;
   }
   const headerMatch = raw.match(/header-max-length[^:]*:[^[]*\[\s*\d+,\s*[^,]+,\s*(\d+)/);
-  if (headerMatch) result.maxHeaderLength = parseInt(headerMatch[1], 10);
+  if (headerMatch) result.maxHeaderLength = parseInt(headerMatch[1] ?? '0', 10);
   return result;
 }
 
@@ -197,7 +198,7 @@ function detectMonorepoScopes(cwd: string): string[] {
           const dirPath = join(cwd, dir);
           if (existsSync(dirPath)) {
             try {
-              const entries = readdirSync(dirPath) as string[];
+              const entries = readdirSync(dirPath);
               scopes.push(...entries.filter((e: string) => !e.startsWith('.')));
             } catch {
               /* */
@@ -213,11 +214,11 @@ function detectMonorepoScopes(cwd: string): string[] {
   return [...new Set(scopes)];
 }
 
-async function inferFromHistory(cwd: string): Promise<ConventionType | null> {
+function inferFromHistory(cwd: string): ConventionType | null {
   try {
     const result = spawnSync('git', ['log', '--oneline', '-20'], { cwd, encoding: 'utf-8' });
     if (result.status !== 0) return null;
-    const lines: string[] = (result.stdout as string).split('\n').filter(Boolean);
+    const lines: string[] = result.stdout.split('\n').filter(Boolean);
     const conventionalPattern =
       /^[a-f0-9]+ (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:/;
     const matches = lines.filter((l: string) => conventionalPattern.test(l));

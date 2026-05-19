@@ -1,5 +1,6 @@
 import { execSync, spawnSync } from 'child_process';
 import { ensureGitRepo } from '../git/ensure-repo.js';
+import { validateRemoteName } from '../git/validate.js';
 import {
   fetchRemote,
   getAheadBehindCount,
@@ -9,13 +10,13 @@ import {
   getUpstream,
   hasMergeConflicts,
 } from '../git/repo.js';
-import { blank, divider, error, info, keyValue, section, success, warning } from '../ux/display.js';
-import { confirmPrompt, selectPrompt, smartFileSelectPrompt } from '../ux/prompt.js';
+import { blank, error, info, keyValue, section, success, warning } from '../ux/display.js';
+import { confirmPrompt, selectPrompt } from '../ux/prompt.js';
 import { failSpinner, startSpinner, succeedSpinner } from '../ux/spinner.js';
 
 function relativeTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60)   return `${s}s ago`;
+  if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
@@ -40,7 +41,7 @@ function getOutgoingCommits(upstream: string, cwd: string): string[] {
 
 export async function runSync(): Promise<void> {
   const cwd = process.cwd();
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
 
   const upstream = getUpstream(cwd);
   if (!upstream) {
@@ -136,7 +137,7 @@ export async function runSync(): Promise<void> {
   } else if (choice.startsWith('Pull (rebase)')) {
     await doPull(cwd, upstream, 'rebase');
   } else if (choice.startsWith('Push my commits')) {
-    await doPush(cwd, ahead, upstream);
+    doPush(cwd, ahead, upstream);
   } else if (choice.startsWith('Push first')) {
     warning('This requires a force push and can overwrite remote commits.');
     const confirm = await confirmPrompt('Force push first?', false);
@@ -144,20 +145,32 @@ export async function runSync(): Promise<void> {
       try {
         execSync('git push --force-with-lease', { cwd, stdio: 'inherit' });
         success('Pushed.');
-      } catch { error('Push failed.'); }
+      } catch {
+        error('Push failed.');
+      }
     }
   }
 }
 
 // ── Pull ──────────────────────────────────────────────────────────────────
 
-async function doPull(cwd: string, upstream: string, mode: 'ff-only' | 'merge' | 'rebase'): Promise<void> {
-  const [remote, ...branchParts] = upstream.split('/');
-  const remoteBranch = branchParts.join('/');
+async function doPull(
+  cwd: string,
+  upstream: string,
+  mode: 'ff-only' | 'merge' | 'rebase'
+): Promise<void> {
+  const upstreamParts = upstream.split('/');
+  const remote = upstreamParts[0] ?? '';
+  const remoteBranch = upstreamParts.slice(1).join('/');
+  const remoteCheck = validateRemoteName(remote);
+  if (!remoteCheck.valid) {
+    error(`Invalid remote name "${remote}": ${remoteCheck.reason}`);
+    return;
+  }
 
   const pullArgs: string[] = ['pull', remote, remoteBranch];
   if (mode === 'ff-only') pullArgs.push('--ff-only');
-  if (mode === 'rebase')  pullArgs.push('--rebase');
+  if (mode === 'rebase') pullArgs.push('--rebase');
 
   startSpinner(`Pulling (${mode})...`);
   const r = git(pullArgs, cwd);
@@ -186,7 +199,7 @@ async function doPull(cwd: string, upstream: string, mode: 'ff-only' | 'merge' |
 
 // ── Push ──────────────────────────────────────────────────────────────────
 
-async function doPush(cwd: string, ahead: number, upstream: string): Promise<void> {
+function doPush(cwd: string, ahead: number, upstream: string): void {
   info(`Pushing ${ahead} commit(s) to ${upstream}...`);
   try {
     execSync('git push', { cwd, stdio: 'inherit' });

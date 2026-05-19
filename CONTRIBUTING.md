@@ -5,7 +5,7 @@ Thank you for your interest in contributing!
 ## Local Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/git-smart-flow.git
+git clone https://github.com/anir-dev/git-smart-flow.git
 cd git-smart-flow
 npm install
 npm run build

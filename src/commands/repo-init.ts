@@ -46,10 +46,14 @@ function isGhAuthenticated(): boolean {
 
 function fetchGithubIdentity(): { name: string; email: string } | null {
   if (!isGhAvailable() || !isGhAuthenticated()) return null;
-  const name = spawnSync('gh', ['api', 'user', '--jq', '.name'], { encoding: 'utf-8' }).stdout?.trim();
-  const email = spawnSync('gh', ['api', 'user', '--jq', '.email'], { encoding: 'utf-8' }).stdout?.trim();
+  const name = spawnSync('gh', ['api', 'user', '--jq', '.name'], {
+    encoding: 'utf-8',
+  }).stdout?.trim();
+  const email = spawnSync('gh', ['api', 'user', '--jq', '.email'], {
+    encoding: 'utf-8',
+  }).stdout?.trim();
   if (!name || name === 'null') return null;
-  return { name, email: (!email || email === 'null') ? '' : email };
+  return { name, email: !email || email === 'null' ? '' : email };
 }
 
 // ── Status overview ────────────────────────────────────────────────────────
@@ -93,7 +97,9 @@ function printStatus(cwd: string): void {
   if (hooksOk) {
     success('Git hooks: commit-msg + pre-push installed');
   } else if (hooksPartial) {
-    warning(`Git hooks: partial (commit-msg: ${hooks.commitMsg ? '✔' : '✘'}  pre-push: ${hooks.prePush ? '✔' : '✘'})`);
+    warning(
+      `Git hooks: partial (commit-msg: ${hooks.commitMsg ? '✔' : '✘'}  pre-push: ${hooks.prePush ? '✔' : '✘'})`
+    );
   } else {
     info('Git hooks: not installed');
   }
@@ -195,7 +201,7 @@ async function stepDefaultBranch(cwd: string): Promise<void> {
   if (choice.startsWith('Keep')) return;
 
   let name = 'main';
-  if (choice.startsWith('master'))  name = 'master';
+  if (choice.startsWith('master')) name = 'master';
   else if (choice.startsWith('develop')) name = 'develop';
   else if (choice.startsWith('Custom')) {
     name = await inputPrompt('Branch name', current);
@@ -203,7 +209,10 @@ async function stepDefaultBranch(cwd: string): Promise<void> {
     name = name.trim();
   }
 
-  if (name === current) { info('Already on that branch name.'); return; }
+  if (name === current) {
+    info('Already on that branch name.');
+    return;
+  }
 
   setDefaultBranch(name, cwd);
   // Also try git branch -m for repos that already have commits
@@ -238,9 +247,10 @@ async function stepIdentity(cwd: string): Promise<void> {
   }
   options.push('Enter manually');
 
-  const choice = options.length === 1
-    ? options[0]
-    : await selectPrompt('Choose identity source:', options);
+  const choice =
+    options.length === 1
+      ? (options[0] ?? '')
+      : await selectPrompt('Choose identity source:', options);
 
   let name = '';
   let email = '';
@@ -251,8 +261,12 @@ async function stepIdentity(cwd: string): Promise<void> {
       email = ghIdentity.email;
     } else {
       // Fetch noreply email from GitHub
-      const login = spawnSync('gh', ['api', 'user', '--jq', '.login'], { encoding: 'utf-8' }).stdout?.trim();
-      const id = spawnSync('gh', ['api', 'user', '--jq', '.id'], { encoding: 'utf-8' }).stdout?.trim();
+      const login = spawnSync('gh', ['api', 'user', '--jq', '.login'], {
+        encoding: 'utf-8',
+      }).stdout?.trim();
+      const id = spawnSync('gh', ['api', 'user', '--jq', '.id'], {
+        encoding: 'utf-8',
+      }).stdout?.trim();
       if (login && id) {
         email = `${id}+${login}@users.noreply.github.com`;
         info(`Using GitHub noreply email: ${email}`);
@@ -287,7 +301,10 @@ async function stepGitignore(cwd: string): Promise<void> {
     const current = readGitignore(cwd);
     info('.gitignore already exists.');
     console.log('\n  First lines:');
-    current.split('\n').slice(0, 8).forEach((l) => console.log('  ' + l));
+    current
+      .split('\n')
+      .slice(0, 8)
+      .forEach((l) => console.log('  ' + l));
     blank();
 
     const action = await selectPrompt('What do you want to do?', [
@@ -310,11 +327,11 @@ async function stepGitignore(cwd: string): Promise<void> {
 
   const typeLabels: Array<{ key: ProjectType; label: string }> = [
     { key: detected, label: `${PROJECT_TYPE_LABELS[detected]} (detected)` },
-    { key: 'node',    label: 'Node.js / TypeScript / JavaScript' },
-    { key: 'python',  label: 'Python' },
-    { key: 'java',    label: 'Java / Kotlin (Maven / Gradle)' },
-    { key: 'go',      label: 'Go' },
-    { key: 'rust',    label: 'Rust' },
+    { key: 'node', label: 'Node.js / TypeScript / JavaScript' },
+    { key: 'python', label: 'Python' },
+    { key: 'java', label: 'Java / Kotlin (Maven / Gradle)' },
+    { key: 'go', label: 'Go' },
+    { key: 'rust', label: 'Rust' },
     { key: 'generic', label: 'Generic (editor files, env, logs)' },
     { key: 'generic', label: 'Skip' },
   ];
@@ -328,7 +345,9 @@ async function stepGitignore(cwd: string): Promise<void> {
   const matched = unique.find((t) => t.label === choice);
   const chosenType: ProjectType = matched?.key ?? detected;
   writeGitignore(getTemplate(chosenType), cwd);
-  success(`.gitignore ${existing ? 'replaced' : 'created'} (${PROJECT_TYPE_LABELS[chosenType]} template).`);
+  success(
+    `.gitignore ${existing ? 'replaced' : 'created'} (${PROJECT_TYPE_LABELS[chosenType]} template).`
+  );
   blank();
 }
 
@@ -373,9 +392,9 @@ async function stepHooks(cwd: string): Promise<void> {
 
   const choices: string[] = [];
   if (!hooks.commitMsg || !hooks.prePush) choices.push('Install all hooks');
-  if (hooks.commitMsg || hooks.prePush)   choices.push('Reinstall / overwrite all hooks');
+  if (hooks.commitMsg || hooks.prePush) choices.push('Reinstall / overwrite all hooks');
   if (!hooks.commitMsg) choices.push('Install commit-msg only (validates Conventional Commits)');
-  if (!hooks.prePush)   choices.push('Install pre-push only (warns on protected branch push)');
+  if (!hooks.prePush) choices.push('Install pre-push only (warns on protected branch push)');
   choices.push('Skip');
 
   const choice = await selectPrompt('Git hooks action:', choices);
@@ -385,7 +404,7 @@ async function stepHooks(cwd: string): Promise<void> {
   if (!existsSync(hooksDir)) mkdirSync(hooksDir, { recursive: true });
 
   const installCommitMsg = choice.includes('commit-msg') || choice.includes('all');
-  const installPrePush   = choice.includes('pre-push')   || choice.includes('all');
+  const installPrePush = choice.includes('pre-push') || choice.includes('all');
 
   if (installCommitMsg) {
     const p = join(hooksDir, 'commit-msg');
@@ -413,18 +432,23 @@ async function stepProtectedBranches(cwd: string): Promise<void> {
   info(`Currently protected: ${current.join(', ')}`);
   blank();
   info('gsf will warn and require confirmation before committing or pushing to these branches.');
-  info('Note: server-side branch protection rules must be set in your GitHub/GitLab repo settings.');
+  info(
+    'Note: server-side branch protection rules must be set in your GitHub/GitLab repo settings.'
+  );
   blank();
 
   const change = await confirmPrompt('Edit the protected branches list?', false);
   if (!change) return;
 
-  const raw = await inputPrompt(
-    'Protected branches (comma-separated)',
-    current.join(', ')
-  );
-  const branches = raw.split(',').map((b) => b.trim()).filter(Boolean);
-  if (branches.length === 0) { info('No changes made.'); return; }
+  const raw = await inputPrompt('Protected branches (comma-separated)', current.join(', '));
+  const branches = raw
+    .split(',')
+    .map((b) => b.trim())
+    .filter(Boolean);
+  if (branches.length === 0) {
+    info('No changes made.');
+    return;
+  }
 
   // Save to local config so it applies only to this repo
   const local = loadLocalConfig(cwd) ?? {};
@@ -444,35 +468,59 @@ async function stepProtectedBranches(cwd: string): Promise<void> {
   // Offer GitHub branch protection guidance
   const remotes = getRemotes(cwd);
   if (remotes.length > 0 && isGhAvailable() && isGhAuthenticated()) {
-    const ghProtect = await confirmPrompt('Also set branch protection rules on GitHub via gh CLI?', false);
+    const ghProtect = await confirmPrompt(
+      'Also set branch protection rules on GitHub via gh CLI?',
+      false
+    );
     if (ghProtect) {
-      await setGitHubBranchProtection(cwd, branches);
+      setGitHubBranchProtection(cwd, branches);
     }
   } else if (remotes.length > 0) {
     blank();
     info('To add server-side branch protection on GitHub:');
-    console.log('  Settings → Branches → Add rule → enter branch name → enable "Require pull request reviews"');
+    console.log(
+      '  Settings → Branches → Add rule → enter branch name → enable "Require pull request reviews"'
+    );
   }
 }
 
-async function setGitHubBranchProtection(cwd: string, branches: string[]): Promise<void> {
+function setGitHubBranchProtection(cwd: string, branches: string[]): void {
   // Detect repo from remote
-  const remoteUrl = spawnSync('git', ['remote', 'get-url', 'origin'], { cwd, encoding: 'utf-8' }).stdout?.trim();
-  if (!remoteUrl) { warning('Could not detect GitHub repo from origin remote.'); return; }
+  const remoteUrl = spawnSync('git', ['remote', 'get-url', 'origin'], {
+    cwd,
+    encoding: 'utf-8',
+  }).stdout?.trim();
+  if (!remoteUrl) {
+    warning('Could not detect GitHub repo from origin remote.');
+    return;
+  }
   const match = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)/);
-  if (!match) { warning('Origin does not look like a GitHub repository.'); return; }
+  if (!match) {
+    warning('Origin does not look like a GitHub repository.');
+    return;
+  }
   const repo = match[1];
 
   for (const branch of branches) {
     info(`Setting protection for "${branch}" on ${repo}...`);
-    const result = spawnSync('gh', [
-      'api', `repos/${repo}/branches/${branch}/protection`,
-      '--method', 'PUT',
-      '--field', 'required_status_checks=null',
-      '--field', 'enforce_admins=false',
-      '--field', 'required_pull_request_reviews[required_approving_review_count]=1',
-      '--field', 'restrictions=null',
-    ], { cwd, encoding: 'utf-8' });
+    const result = spawnSync(
+      'gh',
+      [
+        'api',
+        `repos/${repo}/branches/${branch}/protection`,
+        '--method',
+        'PUT',
+        '--field',
+        'required_status_checks=null',
+        '--field',
+        'enforce_admins=false',
+        '--field',
+        'required_pull_request_reviews[required_approving_review_count]=1',
+        '--field',
+        'restrictions=null',
+      ],
+      { cwd, encoding: 'utf-8' }
+    );
 
     if (result.status === 0) {
       success(`Branch protection enabled for "${branch}" on GitHub.`);

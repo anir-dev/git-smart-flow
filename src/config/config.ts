@@ -50,7 +50,10 @@ export function loadGlobalConfig(): GlobalConfig {
   try {
     const raw = readFileSync(GLOBAL_CONFIG_PATH, 'utf-8');
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return deepMerge(DEFAULT_CONFIG as unknown as Record<string, unknown>, parsed) as unknown as GlobalConfig;
+    return deepMerge(
+      DEFAULT_CONFIG as unknown as Record<string, unknown>,
+      parsed
+    ) as unknown as GlobalConfig;
   } catch {
     return DEFAULT_CONFIG;
   }
@@ -89,7 +92,7 @@ export function mergeConfigs(
     merged = deepMerge(merged, local as unknown as Record<string, unknown>);
   }
   if (cliOverrides) {
-    merged = deepMerge(merged, cliOverrides as unknown as Record<string, unknown>);
+    merged = deepMerge(merged, cliOverrides);
   }
   return { ...(merged as unknown as GlobalConfig), _source: 'merged' };
 }
@@ -104,12 +107,22 @@ export function globalConfigExists(): boolean {
   return existsSync(GLOBAL_CONFIG_PATH);
 }
 
-function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+function deepMerge(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>
+): Record<string, unknown> {
   const result = { ...target };
   for (const key of Object.keys(source)) {
     const sv = source[key];
     const tv = target[key];
-    if (sv && typeof sv === 'object' && !Array.isArray(sv) && tv && typeof tv === 'object' && !Array.isArray(tv)) {
+    if (
+      sv &&
+      typeof sv === 'object' &&
+      !Array.isArray(sv) &&
+      tv &&
+      typeof tv === 'object' &&
+      !Array.isArray(tv)
+    ) {
       result[key] = deepMerge(tv as Record<string, unknown>, sv as Record<string, unknown>);
     } else if (sv !== undefined) {
       result[key] = sv;

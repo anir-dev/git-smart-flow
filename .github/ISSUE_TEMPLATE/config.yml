@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Question / Discussion
+    url: https://github.com/anir-dev/git-smart-flow/discussions
+    about: Ask questions and discuss ideas in GitHub Discussions
+  - name: Security Vulnerability
+    url: https://github.com/anir-dev/git-smart-flow/security/advisories/new
+    about: Report a security vulnerability privately via GitHub Security Advisories

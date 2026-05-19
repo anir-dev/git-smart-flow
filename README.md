@@ -2,7 +2,7 @@
 
 > Interactive CLI to manage Git workflows guided, safe and smart
 
-[![CI](https://github.com/YOUR_USERNAME/git-smart-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/git-smart-flow/actions)
+[![CI](https://github.com/anir-dev/git-smart-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/anir-dev/git-smart-flow/actions)
 [![npm version](https://badge.fury.io/js/git-smart-flow.svg)](https://www.npmjs.com/package/git-smart-flow)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -22,10 +22,10 @@ git-smart-flow setup
 Or via script (macOS/Linux):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/git-smart-flow/main/installers/macos/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/anir-dev/git-smart-flow/main/installers/macos/install.sh | bash
 ```
 
-Or download a [standalone binary](https://github.com/YOUR_USERNAME/git-smart-flow/releases) (no Node.js required).
+Or download a [standalone binary](https://github.com/anir-dev/git-smart-flow/releases) (no Node.js required).
 
 ---
 
@@ -84,7 +84,7 @@ docs/                 User documentation
 ## Local Development
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/git-smart-flow.git
+git clone https://github.com/anir-dev/git-smart-flow.git
 cd git-smart-flow
 npm install
 npm run build

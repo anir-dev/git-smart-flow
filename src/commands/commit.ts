@@ -46,7 +46,7 @@ function parseConventionalMessage(msg: string): {
 } {
   const match = msg.match(/^(\w+)(?:\(([^)]*)\))?(!)?\s*:\s*(.+)/);
   if (match) {
-    const [, type, scope = '', excl, desc] = match;
+    const [, type = 'feat', scope = '', excl, desc = ''] = match;
     const lines = msg.split('\n');
     const body = lines
       .slice(1)
@@ -178,7 +178,7 @@ async function runInkCommit(): Promise<void> {
       if (state.phase !== 'generating') return;
       let cancelled = false;
 
-      (async () => {
+      void (async () => {
         try {
           const provider = await createProviderWithFallback(config);
           const aiContext = buildAIContext({
@@ -232,7 +232,7 @@ async function runInkCommit(): Promise<void> {
           { marginTop: 1 },
           React.createElement(Text, { color: theme.muted }, '¿Continuar? (S/n): ')
         )
-      ) as JSX.Element;
+      );
     }
 
     if (state.phase === 'file-select') {
@@ -252,7 +252,7 @@ async function runInkCommit(): Promise<void> {
             title: 'Sin cambios',
             messages: 'No hay archivos para commitear.',
           })
-        ) as JSX.Element;
+        );
       }
 
       return React.createElement(
@@ -280,7 +280,7 @@ async function runInkCommit(): Promise<void> {
             }
           },
         })
-      ) as JSX.Element;
+      );
     }
 
     if (state.phase === 'security-alert') {
@@ -301,7 +301,7 @@ async function runInkCommit(): Promise<void> {
             setState((s) => ({ ...s, phase: 'generating' }));
           },
         })
-      ) as JSX.Element;
+      );
     }
 
     if (state.phase === 'generating') {
@@ -314,7 +314,7 @@ async function runInkCommit(): Promise<void> {
           { color: theme.muted },
           `  ${state.staged.length} archivo(s) staged`
         )
-      ) as JSX.Element;
+      );
     }
 
     if (state.phase === 'proposal') {
@@ -373,7 +373,7 @@ async function runInkCommit(): Promise<void> {
             }
           },
         })
-      ) as JSX.Element;
+      );
     }
 
     if (state.phase === 'committing') {
@@ -381,7 +381,7 @@ async function runInkCommit(): Promise<void> {
         Box,
         { paddingX: 1 },
         React.createElement(Spinner, { label: 'Creando commit...' })
-      ) as JSX.Element;
+      );
     }
 
     if (state.phase === 'success') {
@@ -404,7 +404,7 @@ async function runInkCommit(): Promise<void> {
             `  Ejecuta  gsf push  cuando estés listo.`
           )
         )
-      ) as JSX.Element;
+      );
     }
 
     if (state.phase === 'error') {
@@ -412,10 +412,10 @@ async function runInkCommit(): Promise<void> {
         Box,
         { paddingX: 1 },
         React.createElement(ErrorBox, { title: 'Error al commitear', messages: state.errorMsg })
-      ) as JSX.Element;
+      );
     }
 
-    return React.createElement(Box, null) as JSX.Element;
+    return React.createElement(Box, null);
   }
 
   // Handle "check-protected" phase with a readline confirm since mixing ink select

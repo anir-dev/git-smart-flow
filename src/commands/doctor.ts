@@ -117,7 +117,7 @@ async function gatherDiagData(): Promise<{
     {
       title: 'Proveedores de IA',
       items: allProviders.map((p) => ({
-        status: (available.includes(p) ? 'ok' : 'muted') as 'ok' | 'muted',
+        status: available.includes(p) ? 'ok' : 'muted',
         label: p,
         value: available.includes(p) ? 'disponible' : 'no disponible',
         active: available.includes(p) && p === configProvider,

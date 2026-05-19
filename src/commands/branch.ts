@@ -1,5 +1,6 @@
 import { getConfig } from '../config/config.js';
 import { ensureGitRepo } from '../git/ensure-repo.js';
+import { validateBranchName } from '../git/validate.js';
 import {
   branchExists,
   createBranch,
@@ -24,31 +25,31 @@ import { showMenu } from '../ux/menu.js';
 
 // Branch type prefixes that follow common conventions
 const BRANCH_TYPES = [
-  { prefix: 'feat',    label: 'feat     — new feature' },
-  { prefix: 'fix',     label: 'fix      — bug fix' },
-  { prefix: 'hotfix',  label: 'hotfix   — urgent production fix' },
-  { prefix: 'chore',   label: 'chore    — maintenance, tooling' },
-  { prefix: 'docs',    label: 'docs     — documentation' },
-  { prefix: 'refactor',label: 'refactor — code restructuring' },
-  { prefix: 'test',    label: 'test     — tests only' },
+  { prefix: 'feat', label: 'feat     — new feature' },
+  { prefix: 'fix', label: 'fix      — bug fix' },
+  { prefix: 'hotfix', label: 'hotfix   — urgent production fix' },
+  { prefix: 'chore', label: 'chore    — maintenance, tooling' },
+  { prefix: 'docs', label: 'docs     — documentation' },
+  { prefix: 'refactor', label: 'refactor — code restructuring' },
+  { prefix: 'test', label: 'test     — tests only' },
   { prefix: 'release', label: 'release  — release preparation' },
-  { prefix: 'custom',  label: 'custom   — type it manually' },
+  { prefix: 'custom', label: 'custom   — type it manually' },
 ];
 
 export async function runBranch(): Promise<void> {
   const cwd = process.cwd();
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
 
   const current = getCurrentBranch(cwd);
 
   await showMenu(`Branch Manager  (current: ${current})`, [
-    { key: '1', label: 'Create new branch',          action: () => createBranchFlow(cwd) },
-    { key: '2', label: 'Switch branch',               action: () => switchBranchFlow(cwd) },
-    { key: '3', label: 'List branches',               action: () => listBranchesFlow(cwd) },
-    { key: '4', label: 'Delete branch',               action: () => deleteBranchFlow(cwd) },
-    { key: '5', label: 'Rename current branch',       action: () => renameBranchFlow(cwd) },
+    { key: '1', label: 'Create new branch', action: () => createBranchFlow(cwd) },
+    { key: '2', label: 'Switch branch', action: () => switchBranchFlow(cwd) },
+    { key: '3', label: 'List branches', action: () => listBranchesFlow(cwd) },
+    { key: '4', label: 'Delete branch', action: () => deleteBranchFlow(cwd) },
+    { key: '5', label: 'Rename current branch', action: () => renameBranchFlow(cwd) },
     { key: '6', label: 'Rescue commits → new branch', action: () => rescueCommitsFlow(cwd) },
-    { key: '0', label: 'Back',                        action: async () => {} },
+    { key: '0', label: 'Back', action: async () => {} },
   ]);
 }
 
@@ -71,7 +72,8 @@ async function createBranchFlow(cwd: string): Promise<void> {
 
   // 2. Optional ticket
   const ticketPattern = new RegExp(config.commit.ticketPattern);
-  const ticketHint = config.commit.requireTicket === true ? ' (required)' : ' (optional, e.g. PROJ-123)';
+  const ticketHint =
+    config.commit.requireTicket === true ? ' (required)' : ' (optional, e.g. PROJ-123)';
   const ticket = await inputPrompt(`Ticket / issue number${ticketHint}`, '');
 
   if (config.commit.requireTicket === true && ticket && !ticketPattern.test(ticket)) {
@@ -87,11 +89,15 @@ async function createBranchFlow(cwd: string): Promise<void> {
   const parts = middle ? [prefix, middle] : [prefix];
   const suggested = parts.join('/');
   const branchName = await inputPrompt('Branch name', suggested);
-  if (!branchName.trim()) { info('Cancelled.'); return; }
+  if (!branchName.trim()) {
+    info('Cancelled.');
+    return;
+  }
 
   // 5. Validate
-  if (!isValidBranchName(branchName)) {
-    error(`"${branchName}" is not a valid Git branch name.`);
+  const vnCreate = validateBranchName(branchName);
+  if (!vnCreate.valid) {
+    error(`"${branchName}" is not a valid Git branch name: ${vnCreate.reason}`);
     return;
   }
   if (branchExists(branchName, cwd)) {
@@ -106,10 +112,7 @@ async function createBranchFlow(cwd: string): Promise<void> {
     currentBranch,
   ];
   const uniqueBases = [...new Set(baseCandidates)];
-  const baseChoice = await selectPrompt(
-    'Base branch (branch off from):',
-    uniqueBases
-  );
+  const baseChoice = await selectPrompt('Base branch (branch off from):', uniqueBases);
 
   // 7. Create
   try {
@@ -132,7 +135,10 @@ async function switchBranchFlow(cwd: string): Promise<void> {
   if (hasUncommittedChanges(cwd)) {
     warning('You have uncommitted changes. They will carry over to the new branch.');
     const proceed = await confirmPrompt('Continue anyway?', false);
-    if (!proceed) { info('Cancelled.'); return; }
+    if (!proceed) {
+      info('Cancelled.');
+      return;
+    }
   }
 
   const branches = listBranches(false, cwd);
@@ -146,9 +152,12 @@ async function switchBranchFlow(cwd: string): Promise<void> {
 
   const choices = others.map((b) => `${b.name}${b.merged ? '  (merged)' : ''}`);
   const choice = await selectPrompt('Switch to:', choices);
-  const target = choice.split('  ')[0];
+  const target = choice.split('  ')[0] ?? choice;
 
-  if (target === current) { info('Already on that branch.'); return; }
+  if (target === current) {
+    info('Already on that branch.');
+    return;
+  }
 
   try {
     switchBranch(target, cwd);
@@ -183,7 +192,6 @@ async function deleteBranchFlow(cwd: string): Promise<void> {
   section('Delete Branch');
 
   const branches = listBranches(false, cwd);
-  const current = getCurrentBranch(cwd);
   const deletable = branches.filter((b) => !b.current && !b.remote);
 
   if (deletable.length === 0) {
@@ -195,7 +203,7 @@ async function deleteBranchFlow(cwd: string): Promise<void> {
   const choice = await selectPrompt('Branch to delete:', [...choices, 'Cancel']);
   if (choice === 'Cancel') return;
 
-  const target = choice.split('  ')[0];
+  const target = choice.split('  ')[0] ?? choice;
 
   if (isProtectedBranch(target, config.git.protectedBranches)) {
     error(`"${target}" is a protected branch — deletion blocked.`);
@@ -206,7 +214,10 @@ async function deleteBranchFlow(cwd: string): Promise<void> {
   if (!targetInfo?.merged) {
     warning(`"${target}" has unmerged commits.`);
     const force = await confirmPrompt('Force delete anyway?', false);
-    if (!force) { info('Cancelled.'); return; }
+    if (!force) {
+      info('Cancelled.');
+      return;
+    }
     try {
       deleteBranch(target, true, cwd);
       success(`Force deleted "${target}".`);
@@ -217,7 +228,10 @@ async function deleteBranchFlow(cwd: string): Promise<void> {
   }
 
   const confirmed = await confirmPrompt(`Delete branch "${target}"?`, false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
 
   try {
     deleteBranch(target, false, cwd);
@@ -226,8 +240,11 @@ async function deleteBranchFlow(cwd: string): Promise<void> {
     // Offer to delete remote tracking branch too
     const upstream = getUpstream(cwd);
     if (upstream) {
-      const [remote] = upstream.split('/');
-      const deleteRemote = await confirmPrompt(`Also delete remote tracking branch "${remote}/${target}"?`, false);
+      const remote = upstream.split('/')[0] ?? '';
+      const deleteRemote = await confirmPrompt(
+        `Also delete remote tracking branch "${remote}/${target}"?`,
+        false
+      );
       if (deleteRemote) {
         try {
           deleteRemoteBranch(remote, target, cwd);
@@ -255,10 +272,14 @@ async function renameBranchFlow(cwd: string): Promise<void> {
   }
 
   const newName = await inputPrompt(`New name for "${current}"`);
-  if (!newName.trim()) { info('Cancelled.'); return; }
+  if (!newName.trim()) {
+    info('Cancelled.');
+    return;
+  }
 
-  if (!isValidBranchName(newName)) {
-    error(`"${newName}" is not a valid Git branch name.`);
+  const vnRename = validateBranchName(newName);
+  if (!vnRename.valid) {
+    error(`"${newName}" is not a valid Git branch name: ${vnRename.reason}`);
     return;
   }
   if (branchExists(newName, cwd)) {
@@ -267,12 +288,20 @@ async function renameBranchFlow(cwd: string): Promise<void> {
   }
 
   const confirmed = await confirmPrompt(`Rename "${current}" → "${newName}"?`);
-  if (!confirmed) { info('Cancelled.'); return; }
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
 
   try {
     renameBranch(newName, cwd);
     success(`Renamed "${current}" → "${newName}".`);
-    warning('If this branch was already pushed, update the remote with:\n  git push origin --delete ' + current + '\n  git push -u origin ' + newName);
+    warning(
+      'If this branch was already pushed, update the remote with:\n  git push origin --delete ' +
+        current +
+        '\n  git push -u origin ' +
+        newName
+    );
   } catch (e) {
     error(`Failed: ${(e as Error).message}`);
   }
@@ -291,7 +320,10 @@ async function rescueCommitsFlow(cwd: string): Promise<void> {
 
   if (!rescueBase) {
     for (const candidate of [`origin/${current}`, 'origin/main', 'origin/master']) {
-      if (refExists(candidate, cwd)) { rescueBase = candidate; break; }
+      if (refExists(candidate, cwd)) {
+        rescueBase = candidate;
+        break;
+      }
     }
   }
 
@@ -308,15 +340,21 @@ async function rescueCommitsFlow(cwd: string): Promise<void> {
   blank();
 
   if (!rescueBase) {
-    warning('No se encontró rama base en el remoto. Se creará la rama pero no se reseteará la original.');
+    warning(
+      'No se encontró rama base en el remoto. Se creará la rama pero no se reseteará la original.'
+    );
   }
 
   // New branch name
   const newBranch = await inputPrompt('Nombre de la nueva rama (ej. feature/mi-cambio)');
-  if (!newBranch.trim()) { info('Cancelado.'); return; }
+  if (!newBranch.trim()) {
+    info('Cancelado.');
+    return;
+  }
 
-  if (!isValidBranchName(newBranch)) {
-    error(`"${newBranch}" no es un nombre de rama Git válido.`);
+  const vnRescue = validateBranchName(newBranch);
+  if (!vnRescue.valid) {
+    error(`"${newBranch}" no es un nombre de rama Git válido: ${vnRescue.reason}`);
     return;
   }
   if (branchExists(newBranch, cwd)) {
@@ -380,15 +418,4 @@ function toSlug(text: string): string {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .slice(0, 50);
-}
-
-function isValidBranchName(name: string): boolean {
-  // Git branch name rules: no spaces, no .., no ~^:?*[\, no leading -, no trailing .lock
-  return (
-    !/[\s~^:?*[\\]/.test(name) &&
-    !name.includes('..') &&
-    !name.startsWith('-') &&
-    !name.endsWith('.lock') &&
-    name.length > 0
-  );
 }

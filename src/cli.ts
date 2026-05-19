@@ -6,7 +6,9 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8')) as { version: string };
+const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8')) as {
+  version: string;
+};
 
 const program = new Command();
 
@@ -81,17 +83,21 @@ program
 program
   .command('push')
   .description('Validated push with confirmation')
-  .action(async () => {
+  .option('--dry-run', 'Preview push without executing')
+  .option('--yes', 'Skip confirmation prompts')
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => {
     const { runPush } = await import('./commands/push.js');
-    await runPush();
+    await runPush(opts);
   });
 
 program
   .command('merge')
   .description('Assisted merge with conflict handling')
-  .action(async () => {
+  .option('--dry-run', 'Preview merge without executing')
+  .option('--yes', 'Skip confirmation prompts')
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => {
     const { runMerge } = await import('./commands/merge.js');
-    await runMerge();
+    await runMerge(opts);
   });
 
 program
@@ -145,9 +151,11 @@ program
 program
   .command('revert')
   .description('Undo / revert wizard: remove bad files, reset commits, revert to remote…')
-  .action(async () => {
+  .option('--dry-run', 'Preview undo operations without executing')
+  .option('--yes', 'Skip confirmation prompts')
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => {
     const { runRevert } = await import('./commands/revert.js');
-    await runRevert();
+    await runRevert(opts);
   });
 
 program

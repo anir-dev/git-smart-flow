@@ -119,7 +119,7 @@ export function CommitProposalView({
 
   const [guidedType, setGuidedType] = useState(inferredType);
   const [guidedScope, setGuidedScope] = useState(parsedScope);
-  const [guidedDesc, setGuidedDesc] = useState(parsedDesc);
+  const [guidedDesc, _setGuidedDesc] = useState(parsedDesc);
   const [regenHint, setRegenHint] = useState('');
 
   const width = Math.min(process.stdout.columns ?? 80, 78);

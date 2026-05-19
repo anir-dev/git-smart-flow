@@ -10,7 +10,13 @@
       "Bash(npm test *)",
       "Bash(chmod +x /Users/coyote/Documents/Proyectos/git-smart-flow/scripts/smoke-test.sh)",
       "Bash(bash /Users/coyote/Documents/Proyectos/git-smart-flow/scripts/smoke-test.sh)",
-      "Bash(bash scripts/smoke-test.sh)"
+      "Bash(bash scripts/smoke-test.sh)",
+      "Bash(npx eslint *)",
+      "Bash(npx tsc *)",
+      "Bash(sort -t: -k1,1)",
+      "Bash(grep -E \"^\\\\-.*\\\\.\\(js|json|md\\)$\")",
+      "Bash(npm install *)",
+      "WebFetch(domain:cli.github.com)"
     ]
   }
 }

@@ -48,7 +48,7 @@ export async function renderInteractive<T>(
       process.once('SIGINT', onSigint);
     } catch (err) {
       process.removeListener('SIGINT', onSigint);
-      reject(err);
+      reject(err instanceof Error ? err : new Error(String(err)));
     }
   });
 }

@@ -11,7 +11,7 @@ async function plainSelectPrompt(message: string, choices: string[]): Promise<st
     rl.question('\nEnter number: ', (answer) => {
       rl.close();
       const idx = parseInt(answer, 10) - 1;
-      resolve(choices[idx] ?? choices[0]);
+      resolve(choices[idx] ?? choices[0] ?? '');
     });
   });
 }
@@ -22,7 +22,10 @@ async function plainConfirmPrompt(message: string, defaultYes: boolean): Promise
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     rl.question(`${message} ${hint} `, (answer) => {
       rl.close();
-      if (!answer.trim()) { resolve(defaultYes); return; }
+      if (!answer.trim()) {
+        resolve(defaultYes);
+        return;
+      }
       resolve(answer.trim().toLowerCase() === 'y');
     });
   });
@@ -60,10 +63,11 @@ async function plainMultiselectPrompt(message: string, choices: string[]): Promi
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     rl.question('\nEnter numbers: ', (answer) => {
       rl.close();
-      const selected = answer.split(',')
+      const selected = answer
+        .split(',')
         .map((s) => parseInt(s.trim(), 10) - 1)
         .filter((i) => i >= 0 && i < choices.length)
-        .map((i) => choices[i] as string);
+        .map((i) => choices[i] ?? '');
       resolve(selected);
     });
   });
@@ -89,15 +93,20 @@ export async function selectPrompt(message: string, choices: string[]): Promise<
   return ri<string>((resolve) => {
     function SelectPrompt(): JSX.Element {
       const [active, setActive] = useState(false);
-      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
-      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+      useEffect(() => {
+        const t = setTimeout(() => setActive(true), 120);
+        return () => clearTimeout(t);
+      }, []);
+      return React.createElement(
+        Box,
+        { flexDirection: 'column', paddingX: 1 },
         React.createElement(Text, { bold: true, color: theme.muted }, message),
         React.createElement(Text),
         React.createElement(Select, { isDisabled: !active, options, onChange: resolve }),
-        React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar'),
-      ) as JSX.Element;
+        React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar')
+      );
     }
-    return React.createElement(SelectPrompt, null) as JSX.Element;
+    return React.createElement(SelectPrompt, null);
   });
 }
 
@@ -111,18 +120,23 @@ export async function confirmPrompt(message: string, defaultYes = true): Promise
   return ri<boolean>((resolve) => {
     function ConfirmPrompt(): JSX.Element {
       const [active, setActive] = useState(false);
-      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
-      return React.createElement(Box, { flexDirection: 'row', paddingX: 1 },
+      useEffect(() => {
+        const t = setTimeout(() => setActive(true), 120);
+        return () => clearTimeout(t);
+      }, []);
+      return React.createElement(
+        Box,
+        { flexDirection: 'row', paddingX: 1 },
         React.createElement(Text, { color: theme.muted }, message + '  '),
         React.createElement(ConfirmInput, {
           isDisabled: !active,
           defaultChoice: defaultYes ? 'confirm' : 'cancel',
           onConfirm: () => resolve(true),
           onCancel: () => resolve(false),
-        }),
-      ) as JSX.Element;
+        })
+      );
     }
-    return React.createElement(ConfirmPrompt, null) as JSX.Element;
+    return React.createElement(ConfirmPrompt, null);
   });
 }
 
@@ -136,9 +150,16 @@ export async function inputPrompt(message: string, defaultValue?: string): Promi
   return ri<string>((resolve) => {
     function InputPrompt(): JSX.Element {
       const [active, setActive] = useState(false);
-      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
-      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
-        React.createElement(Text, { color: theme.muted },
+      useEffect(() => {
+        const t = setTimeout(() => setActive(true), 120);
+        return () => clearTimeout(t);
+      }, []);
+      return React.createElement(
+        Box,
+        { flexDirection: 'column', paddingX: 1 },
+        React.createElement(
+          Text,
+          { color: theme.muted },
           message + (defaultValue ? `  (${defaultValue})` : '')
         ),
         React.createElement(TextInput, {
@@ -146,10 +167,10 @@ export async function inputPrompt(message: string, defaultValue?: string): Promi
           defaultValue: defaultValue ?? '',
           placeholder: defaultValue ?? '',
           onSubmit: (val: string) => resolve(val || defaultValue || ''),
-        }),
-      ) as JSX.Element;
+        })
+      );
     }
-    return React.createElement(InputPrompt, null) as JSX.Element;
+    return React.createElement(InputPrompt, null);
   });
 }
 
@@ -163,17 +184,22 @@ export async function passwordPrompt(message: string): Promise<string> {
   return ri<string>((resolve) => {
     function PasswordPrompt(): JSX.Element {
       const [active, setActive] = useState(false);
-      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
-      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+      useEffect(() => {
+        const t = setTimeout(() => setActive(true), 120);
+        return () => clearTimeout(t);
+      }, []);
+      return React.createElement(
+        Box,
+        { flexDirection: 'column', paddingX: 1 },
         React.createElement(Text, { color: theme.muted }, message),
         React.createElement(PasswordInput, {
           isDisabled: !active,
           placeholder: '••••••••',
           onSubmit: (val: string) => resolve(val),
-        }),
-      ) as JSX.Element;
+        })
+      );
     }
-    return React.createElement(PasswordPrompt, null) as JSX.Element;
+    return React.createElement(PasswordPrompt, null);
   });
 }
 
@@ -188,8 +214,13 @@ export async function multiselectPrompt(message: string, choices: string[]): Pro
   return ri<string[]>((resolve) => {
     function MultiSelectPrompt(): JSX.Element {
       const [active, setActive] = useState(false);
-      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
-      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+      useEffect(() => {
+        const t = setTimeout(() => setActive(true), 120);
+        return () => clearTimeout(t);
+      }, []);
+      return React.createElement(
+        Box,
+        { flexDirection: 'column', paddingX: 1 },
         React.createElement(Text, { bold: true, color: theme.muted }, message),
         React.createElement(Text, { color: theme.muted }, '  Space seleccionar · Enter confirmar'),
         React.createElement(MultiSelect, {
@@ -197,10 +228,10 @@ export async function multiselectPrompt(message: string, choices: string[]): Pro
           options,
           visibleOptionCount: 15,
           onSubmit: (values: string[]) => resolve(values),
-        }),
-      ) as JSX.Element;
+        })
+      );
     }
-    return React.createElement(MultiSelectPrompt, null) as JSX.Element;
+    return React.createElement(MultiSelectPrompt, null);
   });
 }
 
@@ -211,8 +242,8 @@ export async function smartFileSelectPrompt(message: string, files: string[]): P
   if (files.length === 0) return [];
 
   if (files.length === 1) {
-    const ok = await confirmPrompt(`Stage "${files[0]}"?`, true);
-    return ok ? [files[0]] : [];
+    const ok = await confirmPrompt(`Stage "${files[0] ?? ''}"?`, true);
+    return ok ? [files[0] ?? ''] : [];
   }
 
   if (isCI()) return directoryModeSelect(message, files);
@@ -231,9 +262,16 @@ export async function smartFileSelectPrompt(message: string, files: string[]): P
   return ri<string[]>((resolve) => {
     function FileSelectPrompt(): JSX.Element {
       const [active, setActive] = useState(false);
-      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
-      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
-        React.createElement(Text, { bold: true, color: theme.muted },
+      useEffect(() => {
+        const t = setTimeout(() => setActive(true), 120);
+        return () => clearTimeout(t);
+      }, []);
+      return React.createElement(
+        Box,
+        { flexDirection: 'column', paddingX: 1 },
+        React.createElement(
+          Text,
+          { bold: true, color: theme.muted },
           `${message}  [${files.length} file(s)]`
         ),
         React.createElement(Text, { color: theme.muted }, '  Space seleccionar · Enter confirmar'),
@@ -246,10 +284,10 @@ export async function smartFileSelectPrompt(message: string, files: string[]): P
             if (values.includes('__ALL__')) resolve(files);
             else if (selected.length > 0) resolve(selected);
           },
-        }),
-      ) as JSX.Element;
+        })
+      );
     }
-    return React.createElement(FileSelectPrompt, null) as JSX.Element;
+    return React.createElement(FileSelectPrompt, null);
   });
 }
 
@@ -263,6 +301,7 @@ function groupByTopDir(files: string[]): Map<string, string[]> {
     const slash = f.indexOf('/');
     const key = slash > 0 ? f.slice(0, slash + 1) : '(root)';
     if (!map.has(key)) map.set(key, []);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     map.get(key)!.push(f);
   }
   return map;
@@ -271,7 +310,10 @@ function groupByTopDir(files: string[]): Map<string, string[]> {
 async function ask(prompt: string): Promise<string> {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    rl.question(prompt, (a) => { rl.close(); resolve(a.trim()); });
+    rl.question(prompt, (a) => {
+      rl.close();
+      resolve(a.trim());
+    });
   });
 }
 
@@ -308,13 +350,21 @@ async function directoryModeSelect(message: string, files: string[]): Promise<st
     if (!multiDir) continue;
     const idx = parseInt(token, 10) - 1;
     if (idx < 0 || idx >= dirs.length) continue;
-    const [dirName, dirFiles] = dirs[idx];
+    const dirEntry = dirs[idx];
+    if (!dirEntry) continue;
+    const [dirName, dirFiles] = dirEntry;
 
     if (dirFiles.length <= 15) {
-      const picked = await plainMultiselectPrompt(`Files in ${dirName} (${dirFiles.length})`, dirFiles);
+      const picked = await plainMultiselectPrompt(
+        `Files in ${dirName} (${dirFiles.length})`,
+        dirFiles
+      );
       selected.push(...picked);
     } else {
-      const all = await plainConfirmPrompt(`Stage all ${dirFiles.length} file(s) in ${dirName}?`, true);
+      const all = await plainConfirmPrompt(
+        `Stage all ${dirFiles.length} file(s) in ${dirName}?`,
+        true
+      );
       if (all) {
         selected.push(...dirFiles);
       } else {
@@ -337,8 +387,9 @@ async function browseFilesPrompt(files: string[]): Promise<string[]> {
     const e = Math.min(s + PAGE_SIZE, files.length);
     console.log(`\nFiles ${s + 1}–${e} of ${files.length}  (page ${page + 1}/${total}):`);
     for (let i = s; i < e; i++) {
-      const mark = selected.has(files[i]!) ? '✓' : ' ';
-      console.log(`  ${mark} ${String(i + 1).padStart(5)}.  ${files[i]}`);
+      const fi = files[i] ?? '';
+      const mark = selected.has(fi) ? '✓' : ' ';
+      console.log(`  ${mark} ${String(i + 1).padStart(5)}.  ${fi}`);
     }
 
     const hints = ['numbers to toggle (e.g. 1,3,5)'];
@@ -348,12 +399,19 @@ async function browseFilesPrompt(files: string[]): Promise<string[]> {
 
     const ans = await ask(`\n(${hints.join(' · ')}) > `);
     if (ans === 'done' || ans === '') break;
-    if (ans === 'n' && page < total - 1) { page++; continue; }
-    if (ans === 'p' && page > 0) { page--; continue; }
+    if (ans === 'n' && page < total - 1) {
+      page++;
+      continue;
+    }
+    if (ans === 'p' && page > 0) {
+      page--;
+      continue;
+    }
 
     for (const t of ans.split(',')) {
       const i = parseInt(t.trim(), 10) - 1;
       if (i >= 0 && i < files.length) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const f = files[i]!;
         if (selected.has(f)) selected.delete(f);
         else selected.add(f);

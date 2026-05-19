@@ -28,11 +28,14 @@ function parseGraphLine(line: string): ParsedLine {
     const refsStr = parts[3] ?? '';
 
     const refs = refsStr
-      ? refsStr.split(', ').map((r) => r.replace(/^HEAD -> /, '').trim()).filter(Boolean)
+      ? refsStr
+          .split(', ')
+          .map((r) => r.replace(/^HEAD -> /, '').trim())
+          .filter(Boolean)
       : [];
 
     const shaMatch = graphAndSha.match(/\b([0-9a-f]{6,10})\b/);
-    const sha = shaMatch ? shaMatch[1] : '';
+    const sha = shaMatch ? (shaMatch[1] ?? '') : '';
 
     const graphPart = graphAndSha.replace(/\b[0-9a-f]{7,}\b.*/, '').trimEnd();
     const graphUnicode = toUnicodeGraph(graphPart);
@@ -55,7 +58,11 @@ function toUnicodeGraph(s: string): string {
     .replace(/-/g, '─');
 }
 
-export function BranchTree({ cwd = process.cwd(), limit = 8, showMeta = false }: Props): JSX.Element {
+export function BranchTree({
+  cwd = process.cwd(),
+  limit = 8,
+  showMeta = false,
+}: Props): JSX.Element {
   const [lines, setLines] = useState<string[]>([]);
 
   useEffect(() => {
@@ -72,7 +79,7 @@ export function BranchTree({ cwd = process.cwd(), limit = 8, showMeta = false }:
   if (lines.length === 0) {
     return (
       <Box marginBottom={1}>
-        <Text color={theme.muted}>  ● (no commits yet)</Text>
+        <Text color={theme.muted}> ● (no commits yet)</Text>
       </Box>
     );
   }
@@ -90,14 +97,12 @@ export function BranchTree({ cwd = process.cwd(), limit = 8, showMeta = false }:
             <Text color={theme.muted}>{graph} </Text>
             {sha ? (
               <>
-                <Text color={isHead ? theme.accent : theme.muted}>{sha}  </Text>
-                <Text bold={isHead} color={isHead ? 'white' : '#d1d5db'}>{msg}</Text>
-                {mainRef && mainRef !== 'HEAD' && (
-                  <Text color={refColor}>  {mainRef}</Text>
-                )}
-                {showMeta && ago && (
-                  <Text color={theme.muted}>  {ago}</Text>
-                )}
+                <Text color={isHead ? theme.accent : theme.muted}>{sha} </Text>
+                <Text bold={isHead} color={isHead ? 'white' : '#d1d5db'}>
+                  {msg}
+                </Text>
+                {mainRef && mainRef !== 'HEAD' && <Text color={refColor}> {mainRef}</Text>}
+                {showMeta && ago && <Text color={theme.muted}> {ago}</Text>}
               </>
             ) : null}
           </Box>

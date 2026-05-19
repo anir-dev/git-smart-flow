@@ -13,8 +13,8 @@ import {
 } from '../git/repo.js';
 import { createProviderWithFallback } from '../providers/provider.factory.js';
 import { isCI } from '../ux/renderer.js';
-import { blank, error, info, keyValue, section, success } from '../ux/display.js';
-import { confirmPrompt, inputPrompt, selectPrompt } from '../ux/prompt.js';
+import { blank, error, keyValue, section, success } from '../ux/display.js';
+import { inputPrompt, selectPrompt } from '../ux/prompt.js';
 import { failSpinner, startSpinner, succeedSpinner } from '../ux/spinner.js';
 
 const DEFAULT_TEMPLATE = `## Context
@@ -59,13 +59,18 @@ async function runInkPR(): Promise<void> {
     join(cwd, '.github/pull_request_template.md'),
     join(cwd, '.github/PULL_REQUEST_TEMPLATE.md'),
   ];
-  const templateContent = templatePaths.reduce<string | null>((found, p) => {
-    if (found) return found;
-    return existsSync(p) ? readFileSync(p, 'utf-8') : null;
-  }, null) ?? DEFAULT_TEMPLATE;
+  const templateContent =
+    templatePaths.reduce<string | null>((found, p) => {
+      if (found) return found;
+      return existsSync(p) ? readFileSync(p, 'utf-8') : null;
+    }, null) ?? DEFAULT_TEMPLATE;
 
   const aiContext = buildAIContext({
-    repoName, branch, ticket, convention, stagedFiles: staged,
+    repoName,
+    branch,
+    ticket,
+    convention,
+    stagedFiles: staged,
     allowRawDiff: config.ai.allowRawDiff,
   });
 
@@ -75,15 +80,21 @@ async function runInkPR(): Promise<void> {
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
     const [active, setActive] = useState(false);
-    useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
+    useEffect(() => {
+      const t = setTimeout(() => setActive(true), 120);
+      return () => clearTimeout(t);
+    }, []);
 
-    const finish = (): void => { exit(); onDone(); };
+    const finish = (): void => {
+      exit();
+      onDone();
+    };
 
     useEffect(() => {
       if (phase !== 'generating') return;
       let cancelled = false;
 
-      (async () => {
+      void (async () => {
         try {
           const provider = await createProviderWithFallback(config);
           const proposal = await provider.generatePRDescription(aiContext);
@@ -101,15 +112,21 @@ async function runInkPR(): Promise<void> {
         }
       })();
 
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }, [phase]);
 
     const width = Math.min(process.stdout.columns ?? 80, 78);
 
     if (phase === 'generating') {
-      return React.createElement(Box, { paddingX: 1, flexDirection: 'column' },
-        React.createElement(Spinner, { label: `Analizando ${commits.length} commits desde ${base}...` })
-      ) as JSX.Element;
+      return React.createElement(
+        Box,
+        { paddingX: 1, flexDirection: 'column' },
+        React.createElement(Spinner, {
+          label: `Analizando ${commits.length} commits desde ${base}...`,
+        })
+      );
     }
 
     const options = [
@@ -120,32 +137,52 @@ async function runInkPR(): Promise<void> {
       { label: '✖ Salir', value: 'exit' },
     ];
 
-    return React.createElement(Box, { flexDirection: 'column', paddingX: 1, width },
+    return React.createElement(
+      Box,
+      { flexDirection: 'column', paddingX: 1, width },
       // Title box
-      React.createElement(Box, {
-        flexDirection: 'column', borderStyle: 'round' as const,
-        borderColor: theme.accent, paddingX: 1, marginBottom: 1,
-      },
+      React.createElement(
+        Box,
+        {
+          flexDirection: 'column',
+          borderStyle: 'round' as const,
+          borderColor: theme.accent,
+          paddingX: 1,
+          marginBottom: 1,
+        },
         React.createElement(Text, { color: theme.muted }, 'Título del PR'),
-        React.createElement(Text, { bold: true, color: 'white' }, title),
+        React.createElement(Text, { bold: true, color: 'white' }, title)
       ),
 
       // Body box
-      React.createElement(Box, {
-        flexDirection: 'column', borderStyle: 'round' as const,
-        borderColor: theme.border, paddingX: 1, marginBottom: 1, width: width - 2,
-      },
+      React.createElement(
+        Box,
+        {
+          flexDirection: 'column',
+          borderStyle: 'round' as const,
+          borderColor: theme.border,
+          paddingX: 1,
+          marginBottom: 1,
+          width: width - 2,
+        },
         React.createElement(Text, { color: theme.muted }, 'Descripción'),
         React.createElement(Text, null),
-        ...body.split('\n').slice(0, 15).map((line, i) =>
-          React.createElement(Text, { key: i, color: '#d1d5db' }, line)
-        ),
+        ...body
+          .split('\n')
+          .slice(0, 15)
+          .map((line, i) => React.createElement(Text, { key: i, color: '#d1d5db' }, line)),
         body.split('\n').length > 15
-          ? React.createElement(Text, { color: theme.muted }, `  … (${body.split('\n').length - 15} líneas más)`)
-          : null,
+          ? React.createElement(
+              Text,
+              { color: theme.muted },
+              `  … (${body.split('\n').length - 15} líneas más)`
+            )
+          : null
       ),
 
-      React.createElement(Text, { color: theme.muted },
+      React.createElement(
+        Text,
+        { color: theme.muted },
         `  ${commits.length} commits  ·  ${staged.length} archivos  ·  ${config.ai.provider}`
       ),
       React.createElement(Text, null),
@@ -153,31 +190,39 @@ async function runInkPR(): Promise<void> {
       React.createElement(Select, {
         isDisabled: !active,
         options,
-        onChange: async (val: string) => {
-          if (val === 'exit') { finish(); return; }
-          if (val === 'regenerate') { setPhase('generating'); return; }
+        onChange: (val: string) => {
+          if (val === 'exit') {
+            finish();
+            return;
+          }
+          if (val === 'regenerate') {
+            setPhase('generating');
+            return;
+          }
 
           const fullContent = `# ${title}\n\n${body}`;
-          try {
-            if (val === 'copy-title' || val === 'copy-body') {
-              const { default: clipboardy } = await import('clipboardy');
-              await clipboardy.write(val === 'copy-title' ? title : fullContent);
-              success('Copiado al portapapeles.');
-            } else if (val === 'save') {
-              writeFileSync(join(cwd, 'PULL_REQUEST.md'), fullContent, 'utf-8');
-              success('Guardado en PULL_REQUEST.md');
+          void (async () => {
+            try {
+              if (val === 'copy-title' || val === 'copy-body') {
+                const { default: clipboardy } = await import('clipboardy');
+                await clipboardy.write(val === 'copy-title' ? title : fullContent);
+                success('Copiado al portapapeles.');
+              } else if (val === 'save') {
+                writeFileSync(join(cwd, 'PULL_REQUEST.md'), fullContent, 'utf-8');
+                success('Guardado en PULL_REQUEST.md');
+              }
+            } catch {
+              error('Operación fallida.');
             }
-          } catch (e) {
-            error('Operación fallida.');
-          }
-          finish();
+            finish();
+          })();
         },
       })
-    ) as JSX.Element;
+    );
   }
 
-  await renderInteractive<void>((resolve) =>
-    React.createElement(PRFlow, { onDone: resolve }) as JSX.Element
+  await renderInteractive<void>(
+    (resolve) => React.createElement(PRFlow, { onDone: resolve }) as JSX.Element
   );
 }
 
@@ -190,10 +235,10 @@ async function runPlainPR(): Promise<void> {
   const ticket = extractTicketFromBranch(branch, config.commit.ticketPattern);
 
   let base = config.git.defaultBaseBranches[0] ?? 'main';
-  const basePick = await selectPrompt(
-    `Base branch for PR (current: ${base}):`,
-    [...config.git.defaultBaseBranches, 'Enter manually']
-  );
+  const basePick = await selectPrompt(`Base branch for PR (current: ${base}):`, [
+    ...config.git.defaultBaseBranches,
+    'Enter manually',
+  ]);
   if (basePick === 'Enter manually') {
     base = await inputPrompt('Base branch');
   } else {
@@ -208,13 +253,18 @@ async function runPlainPR(): Promise<void> {
     join(cwd, '.github/PULL_REQUEST_TEMPLATE.md'),
     join(cwd, '.gitlab/merge_request_templates/Default.md'),
   ];
-  const templateContent = templatePaths.reduce<string | null>((found, p) => {
-    if (found) return found;
-    return existsSync(p) ? readFileSync(p, 'utf-8') : null;
-  }, null) ?? DEFAULT_TEMPLATE;
+  const templateContent =
+    templatePaths.reduce<string | null>((found, p) => {
+      if (found) return found;
+      return existsSync(p) ? readFileSync(p, 'utf-8') : null;
+    }, null) ?? DEFAULT_TEMPLATE;
 
   const aiContext = buildAIContext({
-    repoName, branch, ticket, convention, stagedFiles: staged,
+    repoName,
+    branch,
+    ticket,
+    convention,
+    stagedFiles: staged,
     allowRawDiff: config.ai.allowRawDiff,
   });
 
@@ -240,7 +290,10 @@ async function runPlainPR(): Promise<void> {
   blank();
 
   const action = await selectPrompt('What do you want to do?', [
-    'Copy to clipboard', 'Save to pr-description.md', 'Print to terminal', 'Done',
+    'Copy to clipboard',
+    'Save to pr-description.md',
+    'Print to terminal',
+    'Done',
   ]);
 
   const fullContent = `# ${proposal.title}\n\n${proposal.body}`;
@@ -249,7 +302,9 @@ async function runPlainPR(): Promise<void> {
       const { default: clipboardy } = await import('clipboardy');
       await clipboardy.write(fullContent);
       success('Copied to clipboard.');
-    } catch { error('Failed to copy to clipboard.'); }
+    } catch {
+      error('Failed to copy to clipboard.');
+    }
   } else if (action === 'Save to pr-description.md') {
     writeFileSync(join(cwd, 'pr-description.md'), fullContent, 'utf-8');
     success('Saved to pr-description.md');
@@ -260,7 +315,7 @@ async function runPlainPR(): Promise<void> {
 
 export async function runPR(): Promise<void> {
   const cwd = process.cwd();
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
 
   if (isCI()) {
     await runPlainPR();

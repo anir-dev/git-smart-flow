@@ -1,7 +1,7 @@
-import { getConfig, loadLocalConfig, saveGlobalConfig, saveLocalConfig } from '../config/config.js';
+import { getConfig, saveGlobalConfig, saveLocalConfig } from '../config/config.js';
 import type { GlobalConfig } from '../types/index.js';
 import { blank, info, keyValue, section, success } from '../ux/display.js';
-import { confirmPrompt, inputPrompt, selectPrompt } from '../ux/prompt.js';
+import { inputPrompt, selectPrompt } from '../ux/prompt.js';
 
 export async function runConfig(): Promise<void> {
   const config = getConfig();
@@ -33,7 +33,13 @@ export async function runConfig(): Promise<void> {
   if (field === 'Back') return;
 
   if (field === 'AI provider') {
-    const provider = await selectPrompt('Provider:', ['heuristic', 'ollama', 'openai', 'claude', 'copilot']);
+    const provider = await selectPrompt('Provider:', [
+      'heuristic',
+      'ollama',
+      'openai',
+      'claude',
+      'copilot',
+    ]);
     if (scope.startsWith('Global')) {
       config.ai.provider = provider as GlobalConfig['ai']['provider'];
       saveGlobalConfig(config);
@@ -41,7 +47,6 @@ export async function runConfig(): Promise<void> {
       saveLocalConfig({ ai: { provider: provider as GlobalConfig['ai']['provider'] } });
     }
     success(`AI provider set to "${provider}".`);
-
   } else if (field === 'Language') {
     const lang = await selectPrompt('Language:', ['en', 'es', 'fr', 'de', 'pt']);
     if (scope.startsWith('Global')) {
@@ -53,11 +58,13 @@ export async function runConfig(): Promise<void> {
       info('Language is a global-only setting.');
     }
     success(`Language set to "${lang}".`);
-
   } else if (field === 'Max commit header length') {
     const val = await inputPrompt('Max length', String(config.commit.maxHeaderLength));
     const num = parseInt(val, 10);
-    if (isNaN(num)) { info('Invalid number.'); return; }
+    if (isNaN(num)) {
+      info('Invalid number.');
+      return;
+    }
     if (scope.startsWith('Global')) {
       config.commit.maxHeaderLength = num;
       saveGlobalConfig(config);
@@ -65,7 +72,6 @@ export async function runConfig(): Promise<void> {
       saveLocalConfig({ commit: { maxHeaderLength: num } });
     }
     success(`Max header length set to ${num}.`);
-
   } else if (field === 'Block on secrets') {
     const val = await selectPrompt('Block commits when secrets are detected?', ['yes', 'no']);
     const block = val === 'yes';

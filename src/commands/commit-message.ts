@@ -29,8 +29,11 @@ export async function runCommitMessage(options: CommitMessageOptions = {}): Prom
   const outputOnly = options.outputOnly === true;
 
   if (!isGitRepo(cwd)) {
-    if (outputOnly) { process.stdout.write('chore: update files\n'); return; }
-    if (!await ensureGitRepo(cwd)) return;
+    if (outputOnly) {
+      process.stdout.write('chore: update files\n');
+      return;
+    }
+    if (!(await ensureGitRepo(cwd))) return;
   }
 
   const config = getConfig();
@@ -61,13 +64,20 @@ export async function runCommitMessage(options: CommitMessageOptions = {}): Prom
   );
 
   if (!scanResult.clean && config.security.blockOnSecrets) {
-    if (outputOnly) { process.stdout.write('chore: update files\n'); return; }
+    if (outputOnly) {
+      process.stdout.write('chore: update files\n');
+      return;
+    }
     error('Security issues detected: ' + scanResult.summary);
     process.exit(1);
   }
 
   const aiContext = buildAIContext({
-    repoName, branch, ticket, convention, stagedFiles: staged,
+    repoName,
+    branch,
+    ticket,
+    convention,
+    stagedFiles: staged,
     allowRawDiff: config.ai.allowRawDiff,
   });
 
@@ -89,7 +99,7 @@ export async function runCommitMessage(options: CommitMessageOptions = {}): Prom
   try {
     message = await provider.generateCommitMessage(aiContext);
     if (!outputOnly) succeedSpinner(`Generated with ${provider.name}`);
-  } catch (e) {
+  } catch {
     if (!outputOnly) failSpinner('Generation failed');
     message = 'chore: update files';
   }

@@ -1,12 +1,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import {
-  getConfig,
-  globalConfigExists,
-  saveGlobalConfig,
-  DEFAULT_CONFIG,
-} from '../config/config.js';
+import { saveGlobalConfig, DEFAULT_CONFIG } from '../config/config.js';
 import { detectAvailableProviders } from '../providers/provider.factory.js';
 import type { GlobalConfig, ProviderName } from '../types/index.js';
 import {
@@ -19,7 +14,7 @@ import {
   success,
   warning,
 } from '../ux/display.js';
-import { confirmPrompt, inputPrompt, passwordPrompt, selectPrompt } from '../ux/prompt.js';
+import { inputPrompt, passwordPrompt, selectPrompt } from '../ux/prompt.js';
 import { startSpinner, succeedSpinner } from '../ux/spinner.js';
 
 const __filename = fileURLToPath(import.meta.url);

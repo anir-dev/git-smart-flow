@@ -18,7 +18,9 @@ import { isCI } from '../ux/renderer.js';
 import { blank, divider, error, info, keyValue, section, success, warning } from '../ux/display.js';
 import type { ValidationSection } from '../ux/components/ValidationReport.js';
 
-async function gatherValidationData(cwd: string): Promise<{ repoName: string; sections: ValidationSection[] }> {
+async function gatherValidationData(
+  cwd: string
+): Promise<{ repoName: string; sections: ValidationSection[] }> {
   const config = getConfig();
   const convention = await detectConvention(cwd);
   const branch = getCurrentBranch(cwd);
@@ -48,11 +50,27 @@ async function gatherValidationData(cwd: string): Promise<{ repoName: string; se
           detail: isProtected ? '⚠ RAMA PROTEGIDA' : undefined,
         },
         {
-          status: ticket ? 'ok' : (config.commit.requireTicket === true ? 'error' : 'info'),
+          status: ticket ? 'ok' : config.commit.requireTicket === true ? 'error' : 'info',
           label: ticket ? `Ticket detectado: ${ticket}` : 'Sin ticket en la rama',
         },
-        ...(ahead > 0 ? [{ status: 'warn' as const, label: `Ahead: ${ahead} commits`, detail: 'por delante de upstream' }] : []),
-        ...(behind > 0 ? [{ status: 'warn' as const, label: `Behind: ${behind} commits`, detail: 'por detrás de upstream' }] : []),
+        ...(ahead > 0
+          ? [
+              {
+                status: 'warn' as const,
+                label: `Ahead: ${ahead} commits`,
+                detail: 'por delante de upstream',
+              },
+            ]
+          : []),
+        ...(behind > 0
+          ? [
+              {
+                status: 'warn' as const,
+                label: `Behind: ${behind} commits`,
+                detail: 'por detrás de upstream',
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -81,14 +99,22 @@ async function gatherValidationData(cwd: string): Promise<{ repoName: string; se
           label: `Staged: ${staged.length} archivo(s)`,
         },
         ...(unstaged.length > 0
-          ? [{ status: 'warn' as const, label: `Unstaged: ${unstaged.length} archivo(s)`, detail: '(no se incluirán en el commit)' }]
+          ? [
+              {
+                status: 'warn' as const,
+                label: `Unstaged: ${unstaged.length} archivo(s)`,
+                detail: '(no se incluirán en el commit)',
+              },
+            ]
           : []),
         ...(untracked.length > 0
           ? [{ status: 'warn' as const, label: `Sin trackear: ${untracked.length} archivo(s)` }]
           : []),
         {
           status: scanResult.clean ? 'ok' : 'error',
-          label: scanResult.clean ? 'Sin secretos detectados' : `Secretos detectados: ${scanResult.detectedSecrets.length}`,
+          label: scanResult.clean
+            ? 'Sin secretos detectados'
+            : `Secretos detectados: ${scanResult.detectedSecrets.length}`,
         },
       ],
     },
@@ -98,13 +124,11 @@ async function gatherValidationData(cwd: string): Promise<{ repoName: string; se
         ? [
             { status: 'ok' as const, label: `Upstream: ${upstream}` },
             {
-              status: (conflicts ? 'error' : 'ok') as 'ok' | 'error',
+              status: conflicts ? 'error' : 'ok',
               label: conflicts ? '✖ Conflictos activos' : '✔ Sin conflictos de merge',
             },
           ]
-        : [
-            { status: 'info' as const, label: 'Sin upstream configurado' },
-          ],
+        : [{ status: 'info' as const, label: 'Sin upstream configurado' }],
     },
   ];
 
@@ -121,7 +145,12 @@ async function runInkValidate(cwd: string): Promise<void> {
   const { unmount } = render(
     React.createElement(ValidationReport, { repoName, sections }) as JSX.Element
   );
-  await new Promise<void>((r) => setImmediate(() => { unmount(); r(); }));
+  await new Promise<void>((r) =>
+    setImmediate(() => {
+      unmount();
+      r();
+    })
+  );
   console.log('');
 }
 
@@ -137,7 +166,10 @@ async function runPlainValidate(cwd: string): Promise<void> {
   const ticket = extractTicketFromBranch(branch, config.commit.ticketPattern);
   const conflicts = hasMergeConflicts(cwd);
   const { ahead, behind } = upstream ? getAheadBehindCount(upstream, cwd) : { ahead: 0, behind: 0 };
-  const scanResult = scanFiles(staged.map((f) => ({ path: f.path })), config.security.blockedFiles);
+  const scanResult = scanFiles(
+    staged.map((f) => ({ path: f.path })),
+    config.security.blockedFiles
+  );
 
   section('Validation Report');
   keyValue('Repository', repoName);
@@ -162,8 +194,10 @@ async function runPlainValidate(cwd: string): Promise<void> {
 
   if (scanResult.clean) success('No security issues detected');
   else {
-    if (scanResult.blockedFiles.length > 0) error(`Sensitive files staged: ${scanResult.blockedFiles.join(', ')}`);
-    if (scanResult.detectedSecrets.length > 0) error(`Potential secrets detected: ${scanResult.detectedSecrets.length} occurrence(s)`);
+    if (scanResult.blockedFiles.length > 0)
+      error(`Sensitive files staged: ${scanResult.blockedFiles.join(', ')}`);
+    if (scanResult.detectedSecrets.length > 0)
+      error(`Potential secrets detected: ${scanResult.detectedSecrets.length} occurrence(s)`);
   }
 
   if (conflicts) error('Active merge conflicts detected');
@@ -183,7 +217,7 @@ async function runPlainValidate(cwd: string): Promise<void> {
 
 export async function runValidate(): Promise<void> {
   const cwd = process.cwd();
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
 
   if (isCI()) {
     await runPlainValidate(cwd);
