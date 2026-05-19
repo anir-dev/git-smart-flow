@@ -1,3 +1,4 @@
+import { spawnSync } from 'child_process';
 import { getConfig } from '../config/config.js';
 import { ensureGitRepo } from '../git/ensure-repo.js';
 import { validateBranchName } from '../git/validate.js';
@@ -49,6 +50,7 @@ export async function runBranch(): Promise<void> {
     { key: '4', label: 'Delete branch', action: () => deleteBranchFlow(cwd) },
     { key: '5', label: 'Rename current branch', action: () => renameBranchFlow(cwd) },
     { key: '6', label: 'Rescue commits → new branch', action: () => rescueCommitsFlow(cwd) },
+    { key: '7', label: 'Clean merged branches', action: () => cleanMergedBranchesFlow(cwd) },
     { key: '0', label: 'Back', action: async () => {} },
   ]);
 }
@@ -406,6 +408,80 @@ async function rescueCommitsFlow(cwd: string): Promise<void> {
   if (rescueBase) keyValue('Base', rescueBase);
   blank();
   info('Ejecuta  gsf push  para subir la nueva rama al remoto.');
+}
+
+// ── Clean merged branches ──────────────────────────────────────────────────
+
+async function cleanMergedBranchesFlow(cwd: string): Promise<void> {
+  const config = getConfig();
+  section('Clean Merged Branches');
+
+  const base = config.git.defaultBaseBranches[0] ?? 'main';
+
+  const r = spawnSync('git', ['branch', '--merged', base], { cwd, encoding: 'utf-8' });
+  if (r.status !== 0) {
+    error('Could not get merged branches. Is "' + base + '" a valid branch?');
+    return;
+  }
+
+  const current = getCurrentBranch(cwd);
+  const merged = (r.stdout ?? '')
+    .split('\n')
+    .map(b => b.replace(/^\*?\s+/, '').trim())
+    .filter(b => b && b !== current && !isProtectedBranch(b, config.git.protectedBranches));
+
+  if (merged.length === 0) {
+    info(`No hay ramas mergeadas en "${base}" que se puedan limpiar.`);
+    blank();
+    info('Las ramas protegidas y la rama actual no se muestran.');
+    return;
+  }
+
+  section(`Ramas mergeadas en "${base}"`);
+  merged.forEach(b => info('  ' + b));
+  blank();
+
+  const confirmed = await confirmPrompt(
+    `¿Eliminar estas ${merged.length} ramas localmente?`,
+    false
+  );
+  if (!confirmed) {
+    info('Operación cancelada.');
+    return;
+  }
+
+  let deleted = 0;
+  let failed = 0;
+  for (const branch of merged) {
+    const del = spawnSync('git', ['branch', '-d', branch], { cwd, encoding: 'utf-8' });
+    if (del.status === 0) {
+      success(`Eliminada: ${branch}`);
+      deleted++;
+    } else {
+      warning(`No se pudo eliminar: ${branch} — ${(del.stderr ?? '').trim()}`);
+      failed++;
+    }
+  }
+
+  blank();
+  keyValue('Eliminadas', String(deleted));
+  if (failed > 0) keyValue('Fallidas', String(failed));
+
+  if (deleted > 0) {
+    const remote = await confirmPrompt('¿Eliminar también del remoto (origin)?', false);
+    if (remote) {
+      for (const branch of merged) {
+        const rDel = spawnSync('git', ['push', 'origin', '--delete', branch], {
+          cwd, encoding: 'utf-8', stdio: 'pipe',
+        });
+        if (rDel.status === 0) {
+          success(`Remote eliminado: ${branch}`);
+        } else {
+          info(`Remote: ${branch} — ${(rDel.stderr ?? '').trim() || 'no encontrado o ya eliminado'}`);
+        }
+      }
+    }
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

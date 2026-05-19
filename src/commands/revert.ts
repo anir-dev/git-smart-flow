@@ -4,6 +4,7 @@ import { join } from 'path';
 import { ensureGitRepo } from '../git/ensure-repo.js';
 import { hasCommits, unstageAll } from '../git/repo.js';
 import { validateFilePath } from '../git/validate.js';
+import { getConfig } from '../config/config.js';
 import { guidedMessageBuilder } from './commit.js';
 import { blank, divider, error, info, keyValue, section, success, warning } from '../ux/display.js';
 import { confirmPrompt, inputPrompt, selectPrompt, smartFileSelectPrompt } from '../ux/prompt.js';
@@ -154,6 +155,7 @@ export async function runRevert(opts: RunOptions = {}): Promise<void> {
       'Safely undo a pushed commit  (creates a new revert commit)',
       'Discard uncommitted changes in working directory',
       'Unstage staged files  (keep changes in working directory)',
+      'Cherry-pick a commit from another branch',
       'Done / Cancel',
     ]);
 
@@ -189,6 +191,9 @@ export async function runRevert(opts: RunOptions = {}): Promise<void> {
         break;
       case 'Unstage staged files  (keep changes in working directory)':
         await flowUnstage(cwd, opts);
+        break;
+      case 'Cherry-pick a commit from another branch':
+        await flowCherryPick(cwd, opts);
         break;
       default:
         running = false;
@@ -463,7 +468,8 @@ async function flowResetN(cwd: string, opts: RunOptions = {}): Promise<void> {
 async function flowResetToCommit(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Reset to a Specific Commit');
 
-  const commits = getRecentCommits(20, cwd);
+  const historyLimit = getConfig().ui?.historyLimit ?? 20;
+  const commits = getRecentCommits(historyLimit, cwd);
   if (commits.length === 0) {
     info('No commits found.');
     return;
@@ -575,7 +581,8 @@ async function flowSafeRevert(cwd: string, opts: RunOptions = {}): Promise<void>
   info('This is safe for shared/pushed history — no force push needed.');
   blank();
 
-  const commits = getRecentCommits(20, cwd);
+  const historyLimit = getConfig().ui?.historyLimit ?? 20;
+  const commits = getRecentCommits(historyLimit, cwd);
   if (commits.length === 0) {
     info('No commits found.');
     return;
@@ -738,5 +745,68 @@ async function flowUnstage(cwd: string, opts: RunOptions = {}): Promise<void> {
     success(`${targets.length} file(s) unstaged. Changes kept in working directory.`);
   } else {
     error(`Failed: ${result.err}`);
+  }
+}
+
+// ── Flow: cherry-pick ──────────────────────────────────────────────────────
+
+async function flowCherryPick(cwd: string, opts: RunOptions = {}): Promise<void> {
+  section('Cherry-pick a Commit from Another Branch');
+
+  blank();
+  info('Fetching recent commits from all branches...');
+
+  const historyLimit = getConfig().ui?.historyLimit ?? 20;
+  const r = git(['log', '--oneline', '--all', '--not', 'HEAD', `-${historyLimit}`], cwd);
+  const lines = r.out.split('\n').filter(Boolean);
+
+  if (lines.length === 0) {
+    info('No commits found on other branches that are not already in your current branch.');
+    return;
+  }
+
+  blank();
+  const chosen = await selectPrompt(
+    'Select a commit to cherry-pick:',
+    [...lines, '← Cancel']
+  );
+  if (chosen.includes('← Cancel')) return;
+
+  const sha = chosen.split(' ')[0] ?? '';
+  if (!sha) return;
+
+  blank();
+  keyValue('Commit', chosen);
+  blank();
+
+  const mode = await selectPrompt('How do you want to apply it?', [
+    'Cherry-pick directly  (creates a new commit)',
+    'Stage only, no commit  (--no-commit, review before committing)',
+    '← Cancel',
+  ]);
+  if (mode.includes('← Cancel')) return;
+
+  const noCommit = mode.includes('no commit');
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would cherry-pick ${sha}${noCommit ? ' --no-commit' : ''}`);
+    return;
+  }
+
+  const args = ['cherry-pick', ...(noCommit ? ['--no-commit'] : []), sha];
+  const result = spawnSync('git', args, { cwd, stdio: 'inherit' });
+
+  if (result.status === 0) {
+    if (noCommit) {
+      success('Changes staged. Review with "git diff --cached", then run "gsf commit".');
+    } else {
+      success('Cherry-pick applied successfully.');
+    }
+  } else {
+    warning('Cherry-pick produced conflicts. Resolve them, then:');
+    console.log('  git add <resolved-files>');
+    console.log('  git cherry-pick --continue');
+    blank();
+    info('To abort: git cherry-pick --abort');
   }
 }

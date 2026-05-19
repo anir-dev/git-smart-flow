@@ -43,6 +43,15 @@ export const DEFAULT_CONFIG: GlobalConfig = {
     gsfm: false,
     gsfp: false,
     gsfpr: false,
+    gsfs: false,
+    gsfr: false,
+    gsfb: false,
+    gsft: false,
+  },
+  ui: {
+    historyLimit: 30,
+    syncCommitsShown: 5,
+    logLimit: 25,
   },
 };
 

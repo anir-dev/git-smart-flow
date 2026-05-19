@@ -16,7 +16,8 @@
       "Bash(sort -t: -k1,1)",
       "Bash(grep -E \"^\\\\-.*\\\\.\\(js|json|md\\)$\")",
       "Bash(npm install *)",
-      "WebFetch(domain:cli.github.com)"
+      "WebFetch(domain:cli.github.com)",
+      "Bash(grep \"\\\\.ts$\")"
     ]
   }
 }

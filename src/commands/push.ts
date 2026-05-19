@@ -8,6 +8,7 @@ import {
   getCommitsSinceBase,
   getUpstream,
   isProtectedBranch,
+  listRemotes,
 } from '../git/repo.js';
 import { isCI } from '../ux/renderer.js';
 import { blank, error, info, keyValue, section, success, warning } from '../ux/display.js';
@@ -16,6 +17,12 @@ import { confirmPrompt, inputPrompt, selectPrompt } from '../ux/prompt.js';
 interface RunOptions {
   dryRun?: boolean;
   yes?: boolean;
+}
+
+async function resolveRemote(cwd: string): Promise<string> {
+  const remotes = listRemotes(cwd);
+  if (remotes.length <= 1) return remotes[0] ?? 'origin';
+  return selectPrompt('¿Qué remoto usar?', remotes);
 }
 
 async function handleDivergedPush(
@@ -188,7 +195,8 @@ async function runInkPush(): Promise<void> {
 
   const opts: RunOptions = {};
   try {
-    const pushArgs = upstream ? [] : ['--set-upstream', 'origin', branch];
+    const remote = upstream ? undefined : await resolveRemote(cwd);
+    const pushArgs = upstream ? [] : ['--set-upstream', remote!, branch];
     const result = spawnSync('git', ['push', ...pushArgs], { cwd, encoding: 'utf-8', stdio: 'pipe' });
     if (result.status === 0) {
       success('Push completado.');
@@ -257,7 +265,8 @@ async function runPlainPush(opts: RunOptions = {}): Promise<void> {
   }
 
   try {
-    const pushArgs = upstream ? [] : ['--set-upstream', 'origin', branch];
+    const remote = upstream ? undefined : await resolveRemote(cwd);
+    const pushArgs = upstream ? [] : ['--set-upstream', remote!, branch];
     const result = spawnSync('git', ['push', ...pushArgs], { cwd, encoding: 'utf-8', stdio: 'pipe' });
     if (result.status === 0) {
       success('Push completed.');

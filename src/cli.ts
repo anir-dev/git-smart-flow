@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { spawnSync as _gitPassSpawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -181,5 +182,39 @@ program
     const { runStash } = await import('./commands/stash.js');
     await runStash();
   });
+
+program
+  .command('tag')
+  .description('Tag manager: list, create, delete, push tags')
+  .action(async () => {
+    const { runTag } = await import('./commands/tag.js');
+    await runTag();
+  });
+
+program
+  .command('reflog')
+  .description('Reflog viewer and commit recovery')
+  .action(async () => {
+    const { runReflog } = await import('./commands/reflog.js');
+    await runReflog();
+  });
+
+// ── Git passthrough — unknown commands delegate to git ─────────────────────
+const GSF_COMMANDS = new Set([
+  'setup', 'menu', 'branch', 'commit', 'commit-message', 'pr', 'validate', 'push',
+  'merge', 'doctor', 'config', 'aliases', 'install-hooks', 'repo-init', 'sync',
+  'revert', 'info', 'log', 'stash', 'tag', 'reflog',
+]);
+
+const _passthroughArg = process.argv[2];
+if (_passthroughArg && !GSF_COMMANDS.has(_passthroughArg) && !_passthroughArg.startsWith('-')) {
+  const _gitArgs = process.argv.slice(2);
+  const _isTTY = process.stderr.isTTY;
+  const _dim = _isTTY ? '\x1b[2m' : '';
+  const _reset = _isTTY ? '\x1b[0m' : '';
+  process.stderr.write(`${_dim}  (gsf → git ${_gitArgs.join(' ')})${_reset}\n`);
+  const _r = _gitPassSpawn('git', _gitArgs, { stdio: 'inherit' });
+  process.exit(_r.status ?? 0);
+}
 
 program.parse(process.argv);

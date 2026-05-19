@@ -15,6 +15,10 @@ export async function runAliases(): Promise<void> {
     ['gsfm', 'gsfm → git-smart-flow merge'],
     ['gsfp', 'gsfp → git-smart-flow push'],
     ['gsfpr', 'gsfpr → git-smart-flow pr'],
+    ['gsfs', 'gsfs → git-smart-flow sync'],
+    ['gsfr', 'gsfr → git-smart-flow revert'],
+    ['gsfb', 'gsfb → git-smart-flow branch'],
+    ['gsft', 'gsft → git-smart-flow tag'],
   ];
 
   for (const [key, label] of aliases) {

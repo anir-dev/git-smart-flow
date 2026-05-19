@@ -9,11 +9,18 @@ import {
   getLastFetchTime,
   getUpstream,
   hasMergeConflicts,
+  listRemotes,
 } from '../git/repo.js';
 import { getConfig } from '../config/config.js';
 import { blank, error, info, keyValue, section, success, warning } from '../ux/display.js';
 import { confirmPrompt, selectPrompt } from '../ux/prompt.js';
 import { failSpinner, startSpinner, succeedSpinner } from '../ux/spinner.js';
+
+async function resolveRemote(cwd: string): Promise<string> {
+  const remotes = listRemotes(cwd);
+  if (remotes.length <= 1) return remotes[0] ?? 'origin';
+  return selectPrompt('¿Qué remoto usar?', remotes);
+}
 
 function relativeTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
@@ -44,13 +51,16 @@ export async function runSync(): Promise<void> {
   const cwd = process.cwd();
   if (!(await ensureGitRepo(cwd))) return;
 
+  const remote = await resolveRemote(cwd);
+
   const config = getConfig();
+  const syncCommitsShown = config.ui?.syncCommitsShown ?? 5;
   const autoFetch = (config.git as Record<string, unknown>).autoFetch as boolean | undefined;
   if (autoFetch !== false) {
     const thresholdMinutes = (config.git as Record<string, unknown>).autoFetchIntervalMinutes as number | undefined ?? 5;
     const lastFetch = getLastFetchTime(cwd);
     if (!lastFetch || (Date.now() - lastFetch.getTime()) / 60000 >= thresholdMinutes) {
-      spawnSync('git', ['fetch', '--quiet', '--prune'], { cwd, stdio: 'pipe', timeout: 10000 });
+      spawnSync('git', ['fetch', '--quiet', '--prune', remote], { cwd, stdio: 'pipe', timeout: 10000 });
     }
   }
 
@@ -76,7 +86,12 @@ export async function runSync(): Promise<void> {
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   startSpinner('Fetching from remote...');
-  const fetchResult = fetchRemote(cwd);
+  const fetchResult = remote === 'origin'
+    ? fetchRemote(cwd)
+    : (() => {
+        const r = spawnSync('git', ['fetch', remote], { cwd, encoding: 'utf-8', timeout: 15000 });
+        return { ok: r.status === 0, output: ((r.stdout ?? '') + (r.stderr ?? '')).trim() };
+      })();
   if (fetchResult.ok) {
     succeedSpinner('Fetch complete');
   } else {
@@ -103,16 +118,16 @@ export async function runSync(): Promise<void> {
   if (ahead > 0) {
     const commits = getOutgoingCommits(upstream, cwd);
     warning(`${ahead} local commit(s) not yet pushed to ${upstream}:`);
-    commits.slice(0, 5).forEach((c) => console.log(`  ↑  ${c}`));
-    if (commits.length > 5) info(`  ... and ${commits.length - 5} more`);
+    commits.slice(0, syncCommitsShown).forEach((c) => console.log(`  ↑  ${c}`));
+    if (commits.length > syncCommitsShown) info(`  ... and ${commits.length - syncCommitsShown} more`);
     blank();
   }
 
   if (behind > 0) {
     const commits = getIncomingCommits(upstream, cwd);
     info(`${behind} new commit(s) on ${upstream} not yet in local branch:`);
-    commits.slice(0, 5).forEach((c) => console.log(`  ↓  ${c}`));
-    if (commits.length > 5) info(`  ... and ${commits.length - 5} more`);
+    commits.slice(0, syncCommitsShown).forEach((c) => console.log(`  ↓  ${c}`));
+    if (commits.length > syncCommitsShown) info(`  ... and ${commits.length - syncCommitsShown} more`);
     blank();
   }
 

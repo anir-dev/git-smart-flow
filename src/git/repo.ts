@@ -356,6 +356,11 @@ export function autoFetchIfStale(thresholdMinutes: number, cwd = process.cwd()):
   }
 }
 
+export function listRemotes(cwd = process.cwd()): string[] {
+  const out = gitSafe(['remote'], cwd) ?? '';
+  return out.split('\n').filter(Boolean);
+}
+
 function parseStatus(char: string): StagedFile['status'] {
   const map: Record<string, StagedFile['status']> = {
     A: 'added',

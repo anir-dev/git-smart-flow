@@ -104,6 +104,15 @@ export interface GlobalConfig {
     gsfm: boolean;
     gsfp: boolean;
     gsfpr: boolean;
+    gsfs: boolean;
+    gsfr: boolean;
+    gsfb: boolean;
+    gsft: boolean;
+  };
+  ui?: {
+    historyLimit?: number;
+    syncCommitsShown?: number;
+    logLimit?: number;
   };
 }
 

@@ -1,10 +1,11 @@
 import { spawnSync } from 'child_process';
 import { ensureGitRepo } from '../git/ensure-repo.js';
+import { getConfig } from '../config/config.js';
 import { section, info, blank } from '../ux/display.js';
 import { selectPrompt, inputPrompt } from '../ux/prompt.js';
 import { isCI } from '../ux/renderer.js';
 
-async function runInkLog(cwd: string): Promise<void> {
+async function runInkLog(cwd: string, logLimit: number): Promise<void> {
   const React = (await import('react')).default;
   const { Box, Text } = await import('ink');
   const { render } = await import('ink');
@@ -28,7 +29,7 @@ async function runInkLog(cwd: string): Promise<void> {
         React.createElement(Text, { color: theme.info }, branch),
         React.createElement(Text, { color: theme.muted }, '  ·  commit history')
       ),
-      React.createElement(BranchTree, { cwd, limit: 25, showMeta: true })
+      React.createElement(BranchTree, { cwd, limit: logLimit, showMeta: true })
     );
   }
 
@@ -42,8 +43,8 @@ async function runInkLog(cwd: string): Promise<void> {
   console.log('');
 }
 
-function runPlainLog(cwd: string): void {
-  spawnSync('git', ['log', '--graph', '--oneline', '--all', '-25'], { cwd, stdio: 'inherit' });
+function runPlainLog(cwd: string, logLimit: number): void {
+  spawnSync('git', ['log', '--graph', '--oneline', '--all', `-${logLimit}`], { cwd, stdio: 'inherit' });
 }
 
 async function runFilteredLog(cwd: string): Promise<void> {
@@ -93,8 +94,11 @@ export async function runLog(): Promise<void> {
   const cwd = process.cwd();
   if (!(await ensureGitRepo(cwd))) return;
 
+  const config = getConfig();
+  const logLimit = config.ui?.logLimit ?? 25;
+
   if (isCI()) {
-    runPlainLog(cwd);
+    runPlainLog(cwd, logLimit);
     return;
   }
 
@@ -105,7 +109,7 @@ export async function runLog(): Promise<void> {
   ]);
 
   if (choice === 'Ver historial completo') {
-    await runInkLog(cwd);
+    await runInkLog(cwd, logLimit);
   } else if (choice === 'Filtrar historial') {
     await runFilteredLog(cwd);
   }
