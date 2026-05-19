@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { spawnSync as _gitPassSpawn } from 'child_process';
+import { printStatusBar } from './ux/statusbar.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -198,6 +199,9 @@ program
     const { runReflog } = await import('./commands/reflog.js');
     await runReflog();
   });
+
+// ── Status bar — printed before every command action ──────────────────────
+program.hook('preAction', () => { printStatusBar(); });
 
 // ── Git passthrough — unknown commands delegate to git ─────────────────────
 const GSF_COMMANDS = new Set([
