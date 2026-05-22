@@ -435,10 +435,12 @@ async function flowResetN(cwd: string, opts: RunOptions = {}): Promise<void> {
   const alreadyPushed = aheadCount !== -1 && n > aheadCount;
 
   blank();
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  info(
-    `Will reset ${n} commit(s) — landing on: ${commits[n - 1]!.shortSha} "${commits[n - 1]!.msg}"`
-  );
+  const targetCommit = commits[n - 1];
+  if (!targetCommit) {
+    error('Invalid commit selection');
+    return;
+  }
+  info(`Will reset ${n} commit(s) — landing on: ${targetCommit.shortSha} "${targetCommit.msg}"`);
   warnHistoryRewrite(alreadyPushed);
   if (mode === 'hard')
     warnDestructive(`Changes from the last ${n} commit(s) will be permanently lost.`);
@@ -766,10 +768,7 @@ async function flowCherryPick(cwd: string, opts: RunOptions = {}): Promise<void>
   }
 
   blank();
-  const chosen = await selectPrompt(
-    'Select a commit to cherry-pick:',
-    [...lines, '← Cancel']
-  );
+  const chosen = await selectPrompt('Select a commit to cherry-pick:', [...lines, '← Cancel']);
   if (chosen.includes('← Cancel')) return;
 
   const sha = chosen.split(' ')[0] ?? '';

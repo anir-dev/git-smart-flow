@@ -120,7 +120,7 @@ async function runCreatePROnGitHub(title: string, body: string): Promise<void> {
   }
 }
 
-async function runPRStatus(): Promise<void> {
+function runPRStatus(): void {
   if (!requireGh()) return;
 
   const cwd = process.cwd();
@@ -169,9 +169,7 @@ async function runPRStatus(): Promise<void> {
     return;
   }
 
-  function checksLabel(
-    checks?: Array<{ state: string }>
-  ): string {
+  function checksLabel(checks?: Array<{ state: string }>): string {
     if (!checks || checks.length === 0) return '';
     const pass = checks.filter((c) => c.state === 'SUCCESS').length;
     const fail = checks.filter((c) => c.state === 'FAILURE').length;
@@ -240,7 +238,7 @@ async function runPRChecks(): Promise<void> {
 
   const cwd = process.cwd();
 
-  const display = async (): Promise<void> => {
+  const display = (): void => {
     startSpinner('Obteniendo CI checks...');
     const result = spawnSync(
       'gh',
@@ -286,12 +284,12 @@ async function runPRChecks(): Promise<void> {
     blank();
   };
 
-  await display();
+  display();
 
   while (true) {
     const again = await confirmPrompt('¿Actualizar checks?', false);
     if (!again) break;
-    await display();
+    display();
   }
 }
 
@@ -477,7 +475,9 @@ async function runPRReview(): Promise<void> {
     return;
   }
 
-  const choices = prs.map((pr) => `#${pr.number}  ${pr.title}  (by @${pr.author?.login ?? 'unknown'})`);
+  const choices = prs.map(
+    (pr) => `#${pr.number}  ${pr.title}  (by @${pr.author?.login ?? 'unknown'})`
+  );
   const picked = await selectPrompt('Selecciona un PR para revisar:', choices);
   const idx = choices.indexOf(picked);
   const pr = prs[idx];
@@ -870,7 +870,7 @@ export async function runPR(): Promise<void> {
       await runCreatePROnGitHub('', '');
       break;
     case 'Ver estado de PRs':
-      await runPRStatus();
+      runPRStatus();
       break;
     case 'Monitorizar CI checks':
       await runPRChecks();

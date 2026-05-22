@@ -31,7 +31,9 @@ async function gatherDiagData(): Promise<{
   allOk: boolean;
   ghAvailable: boolean;
 }> {
-  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string };
+  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as {
+    version: string;
+  };
   const nodeVersion = process.version;
   const nodeOk = parseInt(nodeVersion.slice(1), 10) >= 18;
 
@@ -57,11 +59,15 @@ async function gatherDiagData(): Promise<{
     hasHusky = convention.hasHusky;
   }
 
-  const available = await detectAvailableProviders() as string[];
+  const available = (await detectAvailableProviders()) as string[];
   const ghResult = spawnSync('gh', ['--version'], { encoding: 'utf-8', stdio: 'pipe' });
   const ghAvailable = ghResult.status === 0;
-  const ghVersion = ghAvailable ? (ghResult.stdout ?? '').split('\n')[0]?.trim() ?? 'gh' : 'not found';
-  const ghAuthed = ghAvailable && spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' }).status === 0;
+  const ghVersion = ghAvailable
+    ? ((ghResult.stdout ?? '').split('\n')[0]?.trim() ?? 'gh')
+    : 'not found';
+  const ghAuthed =
+    ghAvailable &&
+    spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' }).status === 0;
   const allProviders = ['heuristic', 'ollama', 'copilot', 'openai', 'claude'];
 
   const sections: DiagSection[] = [
@@ -120,6 +126,7 @@ async function gatherDiagData(): Promise<{
     {
       title: 'Proveedores de IA',
       items: allProviders.map((p) => ({
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         status: (available.includes(p) ? 'ok' : 'muted') as 'ok' | 'muted',
         label: p,
         value: available.includes(p) ? 'disponible' : 'no disponible',
@@ -130,6 +137,7 @@ async function gatherDiagData(): Promise<{
       title: 'GitHub CLI (gh)',
       items: [
         {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
           status: (ghAvailable ? 'ok' : 'warn') as 'ok' | 'warn',
           label: ghAvailable ? `gh  ${ghVersion}` : 'gh CLI no encontrado',
           value: ghAvailable ? undefined : 'instala: https://cli.github.com',
@@ -137,8 +145,11 @@ async function gatherDiagData(): Promise<{
         ...(ghAvailable
           ? [
               {
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
                 status: (ghAuthed ? 'ok' : 'warn') as 'ok' | 'warn',
-                label: ghAuthed ? 'Autenticado en GitHub' : 'No autenticado — ejecuta: gh auth login',
+                label: ghAuthed
+                  ? 'Autenticado en GitHub'
+                  : 'No autenticado — ejecuta: gh auth login',
               },
             ]
           : []),

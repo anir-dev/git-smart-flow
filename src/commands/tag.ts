@@ -13,8 +13,11 @@ function listTags(cwd: string): string[] {
   return r.out.split('\n').filter(Boolean);
 }
 
-async function flowListTags(cwd: string): Promise<void> {
-  const r = git(['tag', '-l', '--sort=-version:refname', '--format=%(refname:short)|%(creatordate:relative)'], cwd);
+function flowListTags(cwd: string): void {
+  const r = git(
+    ['tag', '-l', '--sort=-version:refname', '--format=%(refname:short)|%(creatordate:relative)'],
+    cwd
+  );
   const lines = r.out.split('\n').filter(Boolean);
   if (lines.length === 0) {
     info('No hay tags en este repositorio.');
@@ -30,8 +33,14 @@ async function flowListTags(cwd: string): Promise<void> {
 
 async function flowCreateLightTag(cwd: string): Promise<void> {
   const name = await inputPrompt('Nombre del tag (ej: v1.0.0)');
-  if (!name.trim()) { warning('Nombre vacío.'); return; }
-  if (/[\s~^:?*[\]\\]/.test(name.trim())) { error('Nombre de tag inválido.'); return; }
+  if (!name.trim()) {
+    warning('Nombre vacío.');
+    return;
+  }
+  if (/[\s~^:?*[\]\\]/.test(name.trim())) {
+    error('Nombre de tag inválido.');
+    return;
+  }
   const r = git(['tag', name.trim()], cwd);
   if (r.ok) success(`Tag "${name.trim()}" creado.`);
   else error('Error: ' + r.err);
@@ -40,9 +49,15 @@ async function flowCreateLightTag(cwd: string): Promise<void> {
 async function flowCreateAnnotatedTag(cwd: string): Promise<void> {
   const name = await inputPrompt('Nombre del tag (ej: v1.0.0)');
   if (!name.trim()) return;
-  if (/[\s~^:?*[\]\\]/.test(name.trim())) { error('Nombre de tag inválido.'); return; }
+  if (/[\s~^:?*[\]\\]/.test(name.trim())) {
+    error('Nombre de tag inválido.');
+    return;
+  }
   const msg = await inputPrompt('Mensaje del tag (descripción del release)');
-  if (!msg.trim()) { warning('Mensaje vacío.'); return; }
+  if (!msg.trim()) {
+    warning('Mensaje vacío.');
+    return;
+  }
   const r = git(['tag', '-a', name.trim(), '-m', msg.trim()], cwd);
   if (r.ok) success(`Tag anotado "${name.trim()}" creado.`);
   else error('Error: ' + r.err);
@@ -59,7 +74,7 @@ async function flowDeleteLocalTag(tags: string[], cwd: string): Promise<void> {
 }
 
 async function flowPushTag(tags: string[], cwd: string): Promise<void> {
-  const pushOptions = [...tags.map(t => `  ${t}`), '→ Publicar TODOS los tags', '← Cancelar'];
+  const pushOptions = [...tags.map((t) => `  ${t}`), '→ Publicar TODOS los tags', '← Cancelar'];
   const picked = await selectPrompt('¿Qué tag publicar?', pushOptions);
   if (picked.includes('Cancelar')) return;
   if (picked.includes('TODOS')) {
@@ -103,12 +118,14 @@ export async function runTag(): Promise<void> {
     const menuOptions = [
       '🏷  Crear tag ligero',
       '🏷  Crear tag anotado',
-      ...(tags.length > 0 ? [
-        '📋 Listar tags con fecha',
-        '🗑️  Eliminar tag local',
-        '↑  Publicar tag(s) en remoto',
-        '↓  Eliminar tag del remoto',
-      ] : []),
+      ...(tags.length > 0
+        ? [
+            '📋 Listar tags con fecha',
+            '🗑️  Eliminar tag local',
+            '↑  Publicar tag(s) en remoto',
+            '↓  Eliminar tag del remoto',
+          ]
+        : []),
       '← Salir',
     ];
 
@@ -121,7 +138,7 @@ export async function runTag(): Promise<void> {
     } else if (choice.includes('anotado')) {
       await flowCreateAnnotatedTag(cwd);
     } else if (choice.includes('Listar')) {
-      await flowListTags(cwd);
+      flowListTags(cwd);
     } else if (choice.includes('local')) {
       await flowDeleteLocalTag(tags, cwd);
     } else if (choice.includes('Publicar')) {

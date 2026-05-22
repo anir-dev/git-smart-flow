@@ -66,7 +66,11 @@ async function handleDivergedPush(
     return;
   }
 
-  const forceResult = spawnSync('git', ['push', '--force-with-lease'], { cwd, encoding: 'utf-8', stdio: 'pipe' });
+  const forceResult = spawnSync('git', ['push', '--force-with-lease'], {
+    cwd,
+    encoding: 'utf-8',
+    stdio: 'pipe',
+  });
   if (forceResult.status === 0) {
     success('Force push completado (--force-with-lease).');
   } else {
@@ -196,8 +200,12 @@ async function runInkPush(): Promise<void> {
   const opts: RunOptions = {};
   try {
     const remote = upstream ? undefined : await resolveRemote(cwd);
-    const pushArgs = upstream ? [] : ['--set-upstream', remote!, branch];
-    const result = spawnSync('git', ['push', ...pushArgs], { cwd, encoding: 'utf-8', stdio: 'pipe' });
+    const pushArgs = remote ? ['--set-upstream', remote, branch] : [];
+    const result = spawnSync('git', ['push', ...pushArgs], {
+      cwd,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
     if (result.status === 0) {
       success('Push completado.');
     } else {
@@ -266,8 +274,12 @@ async function runPlainPush(opts: RunOptions = {}): Promise<void> {
 
   try {
     const remote = upstream ? undefined : await resolveRemote(cwd);
-    const pushArgs = upstream ? [] : ['--set-upstream', remote!, branch];
-    const result = spawnSync('git', ['push', ...pushArgs], { cwd, encoding: 'utf-8', stdio: 'pipe' });
+    const pushArgs = remote ? ['--set-upstream', remote, branch] : [];
+    const result = spawnSync('git', ['push', ...pushArgs], {
+      cwd,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
     if (result.status === 0) {
       success('Push completed.');
     } else {
