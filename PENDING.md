@@ -6,12 +6,12 @@
 ## BLOQUE 1 — GitHub Settings (repo todavía privado)
 
 ### 1.1 Entorno npm-publish
-- [ ] **Corregir tag pattern** — entrar en `Settings → Environments → npm-publish` → Edit la regla → cambiar `V*` por `v*` (minúscula)
-- [ ] **Activar Dependency graph** — `Settings → Advanced Security` → Enable
-- [ ] **Activar Dependabot alerts** — misma pantalla → Enable
-- [ ] **Activar Dependabot security updates** — misma pantalla → Enable
-- [ ] **Activar Grouped security updates** — misma pantalla → Enable
-- [ ] **Activar Dependabot version updates** — misma pantalla → Enable
+- [X] **Corregir tag pattern** — entrar en `Settings → Environments → npm-publish` → Edit la regla → cambiar `V*` por `v*` (minúscula)
+- [X] **Activar Dependency graph** — `Settings → Advanced Security` → Enable
+- [X] **Activar Dependabot alerts** — misma pantalla → Enable
+- [X] **Activar Dependabot security updates** — misma pantalla → Enable
+- [X] **Activar Grouped security updates** — misma pantalla → Enable
+- [X] **Activar Dependabot version updates** — misma pantalla → Enable
 
 ---
 

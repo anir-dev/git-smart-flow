@@ -15,6 +15,9 @@
     "type": "git",
     "url": "https://github.com/anir-dev/git-smart-flow.git"
   },
+  "bugs": {
+    "url": "https://github.com/anir-dev/git-smart-flow/issues"
+  },
   "author": {
     "name": "anirdev",
     "url": "https://github.com/anir-dev"
@@ -26,12 +29,15 @@
   },
   "files": [
     "bin",
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
   ],
   "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
   "exports": {
     ".": {
       "import": "./dist/cli.js",
