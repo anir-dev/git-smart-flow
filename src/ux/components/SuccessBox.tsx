@@ -18,10 +18,15 @@ export function SuccessBox({ title = '✅ Éxito', messages }: Props): JSX.Eleme
       paddingX={1}
       width={width}
     >
-      <Text bold color={theme.success}>{title}</Text>
+      <Text bold color={theme.success}>
+        {title}
+      </Text>
       <Text> </Text>
       {lines.map((line, i) => (
-        <Text key={i} color="white">  {line}</Text>
+        <Text key={i} color="white">
+          {' '}
+          {line}
+        </Text>
       ))}
     </Box>
   );

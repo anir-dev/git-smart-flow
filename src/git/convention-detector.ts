@@ -1,10 +1,20 @@
-import { existsSync, readFileSync } from 'fs';
+import { execSync, spawnSync } from 'child_process';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { CommitConvention, ConventionType } from '../types/index.js';
 
 const CONVENTIONAL_TYPES = [
-  'feat', 'fix', 'docs', 'style', 'refactor', 'perf',
-  'test', 'build', 'ci', 'chore', 'revert',
+  'feat',
+  'fix',
+  'docs',
+  'style',
+  'refactor',
+  'perf',
+  'test',
+  'build',
+  'ci',
+  'chore',
+  'revert',
 ];
 
 const DEFAULT_CONVENTION: CommitConvention = {
@@ -20,6 +30,7 @@ const DEFAULT_CONVENTION: CommitConvention = {
   hasHusky: false,
 };
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function detectConvention(cwd = process.cwd()): Promise<CommitConvention> {
   const convention = { ...DEFAULT_CONVENTION };
 
@@ -36,7 +47,7 @@ export async function detectConvention(cwd = process.cwd()): Promise<CommitConve
   }
 
   if (!commitlintResult) {
-    const historyConvention = await inferFromHistory(cwd);
+    const historyConvention = inferFromHistory(cwd);
     if (historyConvention) {
       convention.type = historyConvention;
     }
@@ -47,8 +58,13 @@ export async function detectConvention(cwd = process.cwd()): Promise<CommitConve
 
 function readCommitlint(cwd: string): Partial<CommitConvention> | null {
   const candidates = [
-    'commitlint.config.js', 'commitlint.config.cjs', 'commitlint.config.mjs',
-    '.commitlintrc', '.commitlintrc.json', '.commitlintrc.yaml', '.commitlintrc.yml',
+    'commitlint.config.js',
+    'commitlint.config.cjs',
+    'commitlint.config.mjs',
+    '.commitlintrc',
+    '.commitlintrc.json',
+    '.commitlintrc.yaml',
+    '.commitlintrc.yml',
   ];
 
   for (const candidate of candidates) {
@@ -101,7 +117,11 @@ function parseCommitlintJson(config: Record<string, unknown>): Partial<CommitCon
 
   if (rules['scope-empty']) {
     const scopeEmptyRule = rules['scope-empty'];
-    if (Array.isArray(scopeEmptyRule) && scopeEmptyRule[0] === 2 && scopeEmptyRule[1] === 'always') {
+    if (
+      Array.isArray(scopeEmptyRule) &&
+      scopeEmptyRule[0] === 2 &&
+      scopeEmptyRule[1] === 'always'
+    ) {
       result.scopeRequired = true;
     }
   }
@@ -138,7 +158,7 @@ function parseCommitlintYaml(raw: string): Partial<CommitConvention> {
     result.allowedTypes = CONVENTIONAL_TYPES;
   }
   const headerMatch = raw.match(/header-max-length[^:]*:[^[]*\[\s*\d+,\s*[^,]+,\s*(\d+)/);
-  if (headerMatch) result.maxHeaderLength = parseInt(headerMatch[1], 10);
+  if (headerMatch) result.maxHeaderLength = parseInt(headerMatch[1] ?? '0', 10);
   return result;
 }
 
@@ -156,10 +176,14 @@ function detectMonorepoScopes(cwd: string): string[] {
   // nx.json
   if (existsSync(join(cwd, 'nx.json'))) {
     try {
-      const { execSync } = require('child_process');
-      const output = execSync('ls packages/ 2>/dev/null || ls apps/ 2>/dev/null || true', { cwd, encoding: 'utf-8' });
+      const output = execSync('ls packages/ 2>/dev/null || ls apps/ 2>/dev/null || true', {
+        cwd,
+        encoding: 'utf-8',
+      });
       scopes.push(...output.split('\n').filter(Boolean));
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
   }
 
   // package.json workspaces
@@ -168,34 +192,39 @@ function detectMonorepoScopes(cwd: string): string[] {
     try {
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
       if (pkg.workspaces) {
-        const ws = Array.isArray(pkg.workspaces) ? pkg.workspaces : pkg.workspaces.packages ?? [];
+        const ws = Array.isArray(pkg.workspaces) ? pkg.workspaces : (pkg.workspaces.packages ?? []);
         for (const pattern of ws) {
           const dir = pattern.replace(/\/\*$/, '').replace(/\*$/, '');
           const dirPath = join(cwd, dir);
           if (existsSync(dirPath)) {
             try {
-              const { readdirSync } = require('fs');
-              const entries = readdirSync(dirPath) as string[];
+              const entries = readdirSync(dirPath);
               scopes.push(...entries.filter((e: string) => !e.startsWith('.')));
-            } catch { /* */ }
+            } catch {
+              /* */
+            }
           }
         }
       }
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
   }
 
   return [...new Set(scopes)];
 }
 
-async function inferFromHistory(cwd: string): Promise<ConventionType | null> {
+function inferFromHistory(cwd: string): ConventionType | null {
   try {
-    const { spawnSync } = require('child_process');
     const result = spawnSync('git', ['log', '--oneline', '-20'], { cwd, encoding: 'utf-8' });
     if (result.status !== 0) return null;
-    const lines: string[] = (result.stdout as string).split('\n').filter(Boolean);
-    const conventionalPattern = /^[a-f0-9]+ (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:/;
+    const lines: string[] = result.stdout.split('\n').filter(Boolean);
+    const conventionalPattern =
+      /^[a-f0-9]+ (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:/;
     const matches = lines.filter((l: string) => conventionalPattern.test(l));
     if (matches.length / lines.length >= 0.5) return 'conventional';
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
   return null;
 }

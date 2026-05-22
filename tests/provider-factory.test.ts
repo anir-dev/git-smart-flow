@@ -7,7 +7,7 @@ import { OllamaProvider } from '../src/providers/ollama.provider.js';
 import { OpenAIProvider } from '../src/providers/openai.provider.js';
 import { ClaudeProvider } from '../src/providers/claude.provider.js';
 
-function makeConfig(overrides: Partial<typeof DEFAULT_CONFIG['ai']>) {
+function makeConfig(overrides: Partial<(typeof DEFAULT_CONFIG)['ai']>) {
   return mergeConfigs(DEFAULT_CONFIG, null, {
     ai: { ...DEFAULT_CONFIG.ai, ...overrides },
   });

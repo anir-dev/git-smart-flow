@@ -43,27 +43,42 @@ describe('security-scanner', () => {
     });
 
     it('detects password in content', () => {
-      const result = scanFiles([{
-        path: 'config.ts',
-        content: 'const password = "supersecret123";',
-      }], []);
+      const result = scanFiles(
+        [
+          {
+            path: 'config.ts',
+            content: 'const password = "supersecret123";',
+          },
+        ],
+        []
+      );
       assert.equal(result.clean, false);
       assert.ok(result.detectedSecrets.length > 0);
     });
 
     it('detects API key in content', () => {
-      const result = scanFiles([{
-        path: 'api.ts',
-        content: 'const api_key = "sk-abcdef123456";',
-      }], []);
+      const result = scanFiles(
+        [
+          {
+            path: 'api.ts',
+            content: 'const api_key = "sk-abcdef123456";',
+          },
+        ],
+        []
+      );
       assert.equal(result.clean, false);
     });
 
     it('detects Bearer token', () => {
-      const result = scanFiles([{
-        path: 'http.ts',
-        content: 'headers: { Authorization: "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9" }',
-      }], []);
+      const result = scanFiles(
+        [
+          {
+            path: 'http.ts',
+            content: 'headers: { Authorization: "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9" }',
+          },
+        ],
+        []
+      );
       assert.equal(result.clean, false);
     });
   });

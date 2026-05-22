@@ -41,5 +41,8 @@ export function stopSpinner(): void {
 }
 
 function _stop(): void {
-  if (_interval) { clearInterval(_interval); _interval = null; }
+  if (_interval) {
+    clearInterval(_interval);
+    _interval = null;
+  }
 }

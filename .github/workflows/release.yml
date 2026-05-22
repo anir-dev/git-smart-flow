@@ -1,32 +1,56 @@
 name: Release
+
 on:
   push:
     tags:
       - 'v*'
+
+# Required for npm provenance attestation (SLSA Level 2).
+permissions:
+  contents: write # create GitHub Release + upload assets
+  id-token: write # request OIDC token for npm provenance
+
 jobs:
   release:
+    name: Publish & Release
     runs-on: ubuntu-latest
+    environment: npm-publish # optional: add a GitHub environment with protection rules
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high --omit=dev
+
+      # --provenance generates a signed SLSA provenance attestation.
+      # Requires id-token: write above and the package published to npmjs.com.
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Build standalone binaries
-        run: npx pkg . --out-path downloads
-      - name: Create GitHub Release
+        run: npx @yao-pkg/pkg . --out-path downloads
+        continue-on-error: true # binaries are bonus; don't fail the release
+
+      - name: Upload binaries to release
         uses: softprops/action-gh-release@v2
         with:
           files: downloads/*
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

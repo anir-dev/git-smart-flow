@@ -18,6 +18,7 @@ export class ClaudeProvider extends BaseProvider {
     this.model = model ?? DEFAULT_MODEL;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async isAvailable(): Promise<boolean> {
     return this.apiKey.length > 0;
   }
@@ -28,7 +29,9 @@ export class ClaudeProvider extends BaseProvider {
       const prompt = this.buildCommitPrompt(context);
       const response = await this.messages(prompt);
       if (response) return response.trim();
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generateCommitMessage(context);
   }
 
@@ -41,7 +44,9 @@ export class ClaudeProvider extends BaseProvider {
         const parsed = parsePRJSON(response);
         if (parsed) return parsed;
       }
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generatePRDescription(context);
   }
 
@@ -60,7 +65,7 @@ export class ClaudeProvider extends BaseProvider {
       }),
     });
     if (!res.ok) return null;
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       content?: Array<{ type: string; text?: string }>;
     };
     return data.content?.find((c) => c.type === 'text')?.text ?? null;
@@ -73,6 +78,8 @@ function parsePRJSON(raw: string): PRProposal | null {
     if (!match) return null;
     const parsed = JSON.parse(match[0]) as { title?: string; body?: string };
     if (parsed.title && parsed.body) return { title: parsed.title, body: parsed.body };
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
   return null;
 }

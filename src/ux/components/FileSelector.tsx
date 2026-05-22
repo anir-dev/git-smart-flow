@@ -18,8 +18,14 @@ interface Props {
 
 function statusIcon(status: FileEntry['status']): string {
   const map: Record<string, string> = {
-    added: 'A', modified: 'M', deleted: 'D', renamed: 'R',
-    copied: 'C', unknown: '?', untracked: '?', unstaged: 'M',
+    added: 'A',
+    modified: 'M',
+    deleted: 'D',
+    renamed: 'R',
+    copied: 'C',
+    unknown: '?',
+    untracked: '?',
+    unstaged: 'M',
   };
   return map[status] ?? '?';
 }
@@ -41,6 +47,7 @@ function buildOptions(files: FileEntry[]): { label: string; value: string }[] {
   for (const f of files) {
     const d = dirOf(f.path);
     if (!dirs.has(d)) dirs.set(d, []);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     dirs.get(d)!.push(f);
   }
 
@@ -98,24 +105,25 @@ export function FileSelector({ files, blockedFiles = [], onSelect }: Props): JSX
 
   return (
     <Box flexDirection="column">
-      <Text bold color="white">📂 Archivos con cambios</Text>
+      <Text bold color="white">
+        📂 Archivos con cambios
+      </Text>
       <Text color={theme.muted}>{'─'.repeat(40)}</Text>
 
       {blocked.length > 0 && (
         <Box flexDirection="column" marginBottom={1}>
           {blocked.map((f, i) => (
-            <Text key={i} color={theme.muted}>  🔒 {f.path}  <Text color={theme.error}>(bloqueado - secretos)</Text></Text>
+            <Text key={i} color={theme.muted}>
+              {' '}
+              🔒 {f.path} <Text color={theme.error}>(bloqueado - secretos)</Text>
+            </Text>
           ))}
         </Box>
       )}
 
-      <MultiSelect
-        isDisabled={!isActive}
-        options={options}
-        onSubmit={handleSubmit}
-      />
+      <MultiSelect isDisabled={!isActive} options={options} onSubmit={handleSubmit} />
 
-      <Text color={theme.muted}>  Espacio para seleccionar · Enter para confirmar</Text>
+      <Text color={theme.muted}> Espacio para seleccionar · Enter para confirmar</Text>
     </Box>
   );
 }

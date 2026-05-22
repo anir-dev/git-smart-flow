@@ -30,14 +30,19 @@ export function SecurityAlert({ scan, onChoice }: Props): JSX.Element {
         paddingX={1}
         marginBottom={1}
       >
-        <Text bold color={theme.warning}>⚠️  Alerta de seguridad</Text>
+        <Text bold color={theme.warning}>
+          ⚠️ Alerta de seguridad
+        </Text>
         <Text> </Text>
-        <Text color="white">  Se detectaron posibles secretos en archivos staged:</Text>
+        <Text color="white"> Se detectaron posibles secretos en archivos staged:</Text>
         <Text> </Text>
         {scan.detectedSecrets.map((s, i) => (
           <Box key={i} flexDirection="column" marginLeft={2}>
-            <Text color={theme.info}>📄  {s.file}</Text>
-            <Text color={theme.muted}>     Línea {s.line}:  {s.pattern.replace(/./g, '•').slice(0, 20)}</Text>
+            <Text color={theme.info}>📄 {s.file}</Text>
+            <Text color={theme.muted}>
+              {' '}
+              Línea {s.line}: {s.pattern.replace(/./g, '•').slice(0, 20)}
+            </Text>
           </Box>
         ))}
         {scan.blockedFiles.length > 0 && (
@@ -45,15 +50,19 @@ export function SecurityAlert({ scan, onChoice }: Props): JSX.Element {
             <Text> </Text>
             {scan.blockedFiles.map((f, i) => (
               <Box key={i} marginLeft={2}>
-                <Text color={theme.error}>🔒  {f}  (bloqueado)</Text>
+                <Text color={theme.error}>🔒 {f} (bloqueado)</Text>
               </Box>
             ))}
           </>
         )}
         <Text> </Text>
-        <Text color={theme.muted}>  Estos archivos NO serán enviados a la IA.</Text>
+        <Text color={theme.muted}> Estos archivos NO serán enviados a la IA.</Text>
       </Box>
-      <Select isDisabled={!isActive} options={options} onChange={(val) => onChoice(val as SecurityChoice)} />
+      <Select
+        isDisabled={!isActive}
+        options={options}
+        onChange={(val) => onChoice(val as SecurityChoice)}
+      />
     </Box>
   );
 }

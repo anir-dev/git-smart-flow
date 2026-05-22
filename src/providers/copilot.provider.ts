@@ -15,10 +15,11 @@ export class CopilotProvider extends BaseProvider {
     this.command = command ?? '';
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async isAvailable(): Promise<boolean> {
     if (this.command) return testCommand(this.command);
     for (const candidate of COPILOT_CANDIDATES) {
-      if (await testCommand(candidate)) {
+      if (testCommand(candidate)) {
         this.command = candidate;
         return true;
       }
@@ -34,7 +35,9 @@ export class CopilotProvider extends BaseProvider {
       const prompt = this.buildCommitPrompt(context);
       const result = runCopilot(this.command, prompt);
       if (result) return result.trim();
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generateCommitMessage(context);
   }
 
@@ -46,23 +49,27 @@ export class CopilotProvider extends BaseProvider {
       const prompt = this.buildPRPrompt(context);
       const result = runCopilot(this.command, prompt);
       if (result) return parsePRJSON(result) ?? this.fallback.generatePRDescription(context);
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generatePRDescription(context);
   }
 }
 
 function testCommand(cmd: string): boolean {
   const parts = cmd.split(' ');
-  const result = spawnSync(parts[0], [...parts.slice(1), '--version'], {
-    encoding: 'utf-8', timeout: 3000,
+  const result = spawnSync(parts[0] ?? cmd, [...parts.slice(1), '--version'], {
+    encoding: 'utf-8',
+    timeout: 3000,
   });
   return result.status === 0;
 }
 
 function runCopilot(cmd: string, prompt: string): string | null {
   const parts = cmd.split(' ');
-  const result = spawnSync(parts[0], [...parts.slice(1), '-t', 'shell', prompt], {
-    encoding: 'utf-8', timeout: 30000,
+  const result = spawnSync(parts[0] ?? cmd, [...parts.slice(1), '-t', 'shell', prompt], {
+    encoding: 'utf-8',
+    timeout: 30000,
   });
   if (result.status !== 0) return null;
   return result.stdout?.trim() ?? null;
@@ -74,6 +81,8 @@ function parsePRJSON(raw: string): PRProposal | null {
     if (!match) return null;
     const parsed = JSON.parse(match[0]) as { title?: string; body?: string };
     if (parsed.title && parsed.body) return { title: parsed.title, body: parsed.body };
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
   return null;
 }

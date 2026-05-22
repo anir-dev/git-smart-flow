@@ -37,6 +37,9 @@ Thumbs.db
 # gsf local config (repo-specific, kept per developer)
 # .git-smart-flow.json
 
+# npm pack output
+*.tgz
+
 # Temp
 *.tmp
 *.temp

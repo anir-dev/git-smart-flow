@@ -26,13 +26,18 @@ async function inkShowMenu(title: string, items: MenuItem[]): Promise<void> {
   const selectedKey = await renderInteractive<string>((resolve) => {
     function MenuUI(): JSX.Element {
       const [active, setActive] = useState(false);
-      useEffect(() => { const t = setTimeout(() => setActive(true), 120); return () => clearTimeout(t); }, []);
-      return React.createElement(Box, { flexDirection: 'column', paddingX: 1 },
+      useEffect(() => {
+        const t = setTimeout(() => setActive(true), 120);
+        return () => clearTimeout(t);
+      }, []);
+      return React.createElement(
+        Box,
+        { flexDirection: 'column', paddingX: 1 },
         React.createElement(Text, { bold: true, color: 'white' }, title),
         React.createElement(Text),
         React.createElement(Select, { isDisabled: !active, options, onChange: resolve }),
-        React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar'),
-      ) as JSX.Element;
+        React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar')
+      );
     }
     return React.createElement(MenuUI, null) as JSX.Element;
   });
@@ -52,15 +57,18 @@ async function plainShowMenu(title: string, items: MenuItem[]): Promise<void> {
 
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    rl.question('\n' + chalk.gray('Select option: '), async (answer) => {
+    rl.question('\n' + chalk.gray('Select option: '), (answer) => {
       rl.close();
       const selected = items.find((i) => i.key === answer.trim());
       if (selected) {
-        await selected.action();
+        void selected
+          .action()
+          .then(resolve)
+          .catch(() => resolve());
       } else {
         console.log(chalk.yellow('Invalid option.'));
+        resolve();
       }
-      resolve();
     });
   });
 }

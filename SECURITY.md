@@ -12,8 +12,8 @@
 
 To report a security vulnerability:
 
-1. Email: `security@YOUR_DOMAIN` (replace with your actual address)
-2. Or use [GitHub Private Security Advisories](https://github.com/YOUR_USERNAME/git-smart-flow/security/advisories/new)
+1. Email: `anir.dev.corp@gmail.com`
+2. Or use [GitHub Private Security Advisories](https://github.com/anir-dev/git-smart-flow/security/advisories/new)
 
 Include:
 - Description of the vulnerability

@@ -1,11 +1,20 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { getConfig, globalConfigExists, saveGlobalConfig, DEFAULT_CONFIG } from '../config/config.js';
+import { saveGlobalConfig, DEFAULT_CONFIG } from '../config/config.js';
 import { detectAvailableProviders } from '../providers/provider.factory.js';
 import type { GlobalConfig, ProviderName } from '../types/index.js';
-import { blank, divider, header, info, keyValue, section, success, warning } from '../ux/display.js';
-import { confirmPrompt, inputPrompt, passwordPrompt, selectPrompt } from '../ux/prompt.js';
+import {
+  blank,
+  divider,
+  header,
+  info,
+  keyValue,
+  section,
+  success,
+  warning,
+} from '../ux/display.js';
+import { inputPrompt, passwordPrompt, selectPrompt } from '../ux/prompt.js';
 import { startSpinner, succeedSpinner } from '../ux/spinner.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,13 +29,19 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
 };
 
 export async function runSetup(): Promise<void> {
-  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string };
+  const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as {
+    version: string;
+  };
   header('Interactive Setup Wizard', pkg.version);
 
   // Prerequisites
   section('Prerequisites');
   const nodeOk = parseInt(process.version.slice(1), 10) >= 18;
-  nodeOk ? success(`Node.js ${process.version}`) : warning(`Node.js ${process.version} — requires >= 18`);
+  if (nodeOk) {
+    success(`Node.js ${process.version}`);
+  } else {
+    warning(`Node.js ${process.version} — requires >= 18`);
+  }
   success('Git: checking...');
 
   blank();
@@ -61,13 +76,17 @@ export async function runSetup(): Promise<void> {
 
   // AI Provider
   section('AI Provider');
-  const providerChoices = (['heuristic', 'ollama', 'copilot', 'openai', 'claude'] as ProviderName[])
-    .map((p) => {
-      const avail = available.includes(p) ? ' [available]' : '';
-      return `${p}${avail} — ${PROVIDER_LABELS[p]}`;
-    });
+  const providerChoices = (
+    ['heuristic', 'ollama', 'copilot', 'openai', 'claude'] as ProviderName[]
+  ).map((p) => {
+    const avail = available.includes(p) ? ' [available]' : '';
+    return `${p}${avail} — ${PROVIDER_LABELS[p]}`;
+  });
 
-  const providerChoice = await selectPrompt('Which AI provider do you want to use?', providerChoices);
+  const providerChoice = await selectPrompt(
+    'Which AI provider do you want to use?',
+    providerChoices
+  );
   const chosenProvider = providerChoice.split(' ')[0] as ProviderName;
   config.ai.provider = chosenProvider;
 

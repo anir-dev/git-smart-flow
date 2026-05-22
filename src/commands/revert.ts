@@ -3,6 +3,8 @@ import { existsSync, appendFileSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { ensureGitRepo } from '../git/ensure-repo.js';
 import { hasCommits, unstageAll } from '../git/repo.js';
+import { validateFilePath } from '../git/validate.js';
+import { getConfig } from '../config/config.js';
 import { guidedMessageBuilder } from './commit.js';
 import { blank, divider, error, info, keyValue, section, success, warning } from '../ux/display.js';
 import { confirmPrompt, inputPrompt, selectPrompt, smartFileSelectPrompt } from '../ux/prompt.js';
@@ -14,20 +16,33 @@ function git(args: string[], cwd: string): { ok: boolean; out: string; err: stri
   return { ok: r.status === 0, out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() };
 }
 
-interface Commit { sha: string; shortSha: string; msg: string; date: string; author: string }
+interface Commit {
+  sha: string;
+  shortSha: string;
+  msg: string;
+  date: string;
+  author: string;
+}
 
 function getRecentCommits(n: number, cwd: string): Commit[] {
   const r = git(['log', `-${n}`, '--format=%H\x1f%s\x1f%ar\x1f%an'], cwd);
   if (!r.ok || !r.out) return [];
-  return r.out.split('\n').filter(Boolean).map((line) => {
-    const [sha, msg, date, author] = line.split('\x1f');
-    return { sha, shortSha: sha.slice(0, 8), msg: msg ?? '', date: date ?? '', author: author ?? '' };
-  });
+  return r.out
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split('\x1f');
+      const sha = parts[0] ?? '';
+      const msg = parts[1] ?? '';
+      const date = parts[2] ?? '';
+      const author = parts[3] ?? '';
+      return { sha, shortSha: sha.slice(0, 8), msg, date, author };
+    });
 }
 
 function getCommitsAheadOfRemote(cwd: string): number {
   const r = git(['rev-list', '--count', '@{u}..HEAD'], cwd);
-  return r.ok ? (parseInt(r.out, 10) || 0) : -1; // -1 = no upstream
+  return r.ok ? parseInt(r.out, 10) || 0 : -1; // -1 = no upstream
 }
 
 function getFilesInCommit(sha: string, cwd: string): string[] {
@@ -45,7 +60,7 @@ function getCurrentBranch(cwd: string): string {
   return r.ok ? r.out : 'HEAD';
 }
 
-function isPushed(cwd: string): boolean {
+function _isPushed(cwd: string): boolean {
   const ahead = getCommitsAheadOfRemote(cwd);
   return ahead === 0; // 0 means all commits are on remote; -1 means no upstream
 }
@@ -61,14 +76,16 @@ function printState(cwd: string): void {
   section('Repository State');
   keyValue('Branch', branch);
   if (commits.length > 0) {
-    const c = commits[0];
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const c = commits[0]!;
     keyValue('Last commit', `${c.shortSha}  "${c.msg}"  (${c.date})`);
   } else {
     info('No commits yet.');
   }
   if (upstream) {
     if (ahead === 0) keyValue('Remote', `in sync with ${upstream}`);
-    else if (ahead > 0) keyValue('Remote', `${ahead} commit(s) ahead of ${upstream} — not yet pushed`);
+    else if (ahead > 0)
+      keyValue('Remote', `${ahead} commit(s) ahead of ${upstream} — not yet pushed`);
   } else {
     keyValue('Remote', 'no upstream configured');
   }
@@ -97,14 +114,26 @@ function warnHistoryRewrite(pushed: boolean): void {
 
 // ── Main command ───────────────────────────────────────────────────────────
 
-export async function runRevert(): Promise<void> {
+interface RunOptions {
+  dryRun?: boolean;
+  yes?: boolean;
+}
+
+export async function runRevert(opts: RunOptions = {}): Promise<void> {
   const cwd = process.cwd();
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
+
+  if (opts.dryRun) info('[DRY RUN] No changes will be made.\n');
 
   if (!hasCommits(cwd)) {
     info('No commits yet — nothing to revert.');
-    const unstage = await confirmPrompt('Unstage all files instead?', true);
+    const unstage =
+      opts.yes || opts.dryRun ? true : await confirmPrompt('Unstage all files instead?', true);
     if (unstage) {
+      if (opts.dryRun) {
+        info('[DRY RUN] Would unstage all files.');
+        return;
+      }
       unstageAll(cwd);
       success('All files unstaged. Working tree untouched.');
     }
@@ -126,6 +155,7 @@ export async function runRevert(): Promise<void> {
       'Safely undo a pushed commit  (creates a new revert commit)',
       'Discard uncommitted changes in working directory',
       'Unstage staged files  (keep changes in working directory)',
+      'Cherry-pick a commit from another branch',
       'Done / Cancel',
     ]);
 
@@ -133,34 +163,37 @@ export async function runRevert(): Promise<void> {
 
     switch (choice) {
       case 'Remove files from the last commit  (forgot to gitignore, wrong files…)':
-        await flowRemoveFilesFromCommit(cwd);
+        await flowRemoveFilesFromCommit(cwd, opts);
         break;
       case 'Undo the last commit — keep changes staged  (soft reset)':
-        await flowResetLast(cwd, 'soft');
+        await flowResetLast(cwd, 'soft', opts);
         break;
       case 'Undo the last commit — keep changes unstaged  (mixed reset)':
-        await flowResetLast(cwd, 'mixed');
+        await flowResetLast(cwd, 'mixed', opts);
         break;
       case 'Undo the last commit — DISCARD all changes  (hard reset)':
-        await flowResetLast(cwd, 'hard');
+        await flowResetLast(cwd, 'hard', opts);
         break;
       case 'Go back N commits  (choose soft / mixed / hard)':
-        await flowResetN(cwd);
+        await flowResetN(cwd, opts);
         break;
       case 'Reset to a specific commit  (pick from history)':
-        await flowResetToCommit(cwd);
+        await flowResetToCommit(cwd, opts);
         break;
       case 'Reset to the remote branch state  (discard all local commits)':
-        await flowResetToRemote(cwd);
+        await flowResetToRemote(cwd, opts);
         break;
       case 'Safely undo a pushed commit  (creates a new revert commit)':
-        await flowSafeRevert(cwd);
+        await flowSafeRevert(cwd, opts);
         break;
       case 'Discard uncommitted changes in working directory':
-        await flowDiscardWorkingChanges(cwd);
+        await flowDiscardWorkingChanges(cwd, opts);
         break;
       case 'Unstage staged files  (keep changes in working directory)':
-        await flowUnstage(cwd);
+        await flowUnstage(cwd, opts);
+        break;
+      case 'Cherry-pick a commit from another branch':
+        await flowCherryPick(cwd, opts);
         break;
       default:
         running = false;
@@ -168,7 +201,7 @@ export async function runRevert(): Promise<void> {
 
     if (running && choice !== 'Done / Cancel') {
       blank();
-      const again = await confirmPrompt('Do another undo operation?', false);
+      const again = opts.yes ? false : await confirmPrompt('Do another undo operation?', false);
       if (!again) running = false;
     }
   }
@@ -178,18 +211,25 @@ export async function runRevert(): Promise<void> {
 
 // ── Flow: remove files from last commit ───────────────────────────────────
 
-async function flowRemoveFilesFromCommit(cwd: string): Promise<void> {
+async function flowRemoveFilesFromCommit(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Remove Files from Last Commit');
 
   const commits = getRecentCommits(1, cwd);
-  if (commits.length === 0) { info('No commits found.'); return; }
-  const last = commits[0];
+  if (commits.length === 0) {
+    info('No commits found.');
+    return;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const last = commits[0]!;
 
   info(`Last commit: ${last.shortSha}  "${last.msg}"`);
   blank();
 
   const filesInCommit = getFilesInCommit('HEAD', cwd);
-  if (filesInCommit.length === 0) { info('No files found in last commit.'); return; }
+  if (filesInCommit.length === 0) {
+    info('No files found in last commit.');
+    return;
+  }
 
   info(`${filesInCommit.length} file(s) in this commit.`);
 
@@ -198,18 +238,45 @@ async function flowRemoveFilesFromCommit(cwd: string): Promise<void> {
   const alreadyPushed = aheadCount >= 0 && aheadCount === 0;
   warnHistoryRewrite(alreadyPushed);
 
-  const toRemove = await smartFileSelectPrompt('Select files to remove from the commit', filesInCommit);
-  if (toRemove.length === 0) { info('Nothing selected. Cancelled.'); return; }
+  const toRemove = await smartFileSelectPrompt(
+    'Select files to remove from the commit',
+    filesInCommit
+  );
+  if (toRemove.length === 0) {
+    info('Nothing selected. Cancelled.');
+    return;
+  }
 
   blank();
   warning(`Will remove ${toRemove.length} file(s) from commit "${last.shortSha}" and amend it.`);
   if (alreadyPushed) warning('A force push will be needed afterwards.');
 
-  const confirmed = await confirmPrompt('Proceed?', false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  const confirmed = opts.yes || opts.dryRun ? true : await confirmPrompt('Proceed?', false);
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
+
+  for (const f of toRemove) {
+    const vf = validateFilePath(f);
+    if (!vf.valid) {
+      error(`Invalid file path "${f}": ${vf.reason}`);
+      return;
+    }
+  }
+
+  if (opts.dryRun) {
+    info(
+      `[DRY RUN] Would remove ${toRemove.length} file(s) from commit "${last.shortSha}" and amend it.`
+    );
+    return;
+  }
 
   // Remove from index (working tree untouched)
-  const rm = spawnSync('git', ['rm', '--cached', '-r', '--', ...toRemove], { cwd, encoding: 'utf-8' });
+  const rm = spawnSync('git', ['rm', '--cached', '-r', '--', ...toRemove], {
+    cwd,
+    encoding: 'utf-8',
+  });
   if (rm.status !== 0) {
     error(`git rm failed: ${rm.stderr?.trim()}`);
     return;
@@ -225,16 +292,25 @@ async function flowRemoveFilesFromCommit(cwd: string): Promise<void> {
     if (built) {
       try {
         execSync(`git commit --amend -m ${JSON.stringify(built)}`, { cwd, stdio: 'inherit' });
-      } catch { error('git commit --amend failed.'); return; }
+      } catch {
+        error('git commit --amend failed.');
+        return;
+      }
     } else {
       try {
         execSync('git commit --amend --no-edit', { cwd, stdio: 'inherit' });
-      } catch { error('git commit --amend failed.'); return; }
+      } catch {
+        error('git commit --amend failed.');
+        return;
+      }
     }
   } else {
     try {
       execSync('git commit --amend --no-edit', { cwd, stdio: 'inherit' });
-    } catch { error('git commit --amend failed.'); return; }
+    } catch {
+      error('git commit --amend failed.');
+      return;
+    }
   }
 
   success(`${toRemove.length} file(s) removed from commit.`);
@@ -276,16 +352,21 @@ async function offerGitignoreAppend(files: string[], cwd: string): Promise<void>
 
 // ── Flow: undo last commit ─────────────────────────────────────────────────
 
-async function flowResetLast(cwd: string, mode: 'soft' | 'mixed' | 'hard'): Promise<void> {
+async function flowResetLast(
+  cwd: string,
+  mode: 'soft' | 'mixed' | 'hard',
+  opts: RunOptions = {}
+): Promise<void> {
   const commits = getRecentCommits(2, cwd);
-  const last = commits[0];
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const last = commits[0]!;
   const aheadCount = getCommitsAheadOfRemote(cwd);
   const alreadyPushed = aheadCount >= 0 && aheadCount === 0;
 
   const modeDesc: Record<string, string> = {
-    soft:  'Commit undone. Changes stay STAGED — ready to re-commit.',
+    soft: 'Commit undone. Changes stay STAGED — ready to re-commit.',
     mixed: 'Commit undone. Changes go back to UNSTAGED — you choose what to re-stage.',
-    hard:  'Commit undone. ALL changes DISCARDED — working directory reset to previous commit.',
+    hard: 'Commit undone. ALL changes DISCARDED — working directory reset to previous commit.',
   };
 
   section(`Undo Last Commit (${mode})`);
@@ -294,17 +375,26 @@ async function flowResetLast(cwd: string, mode: 'soft' | 'mixed' | 'hard'): Prom
   blank();
   info(`Effect: ${modeDesc[mode]}`);
   warnHistoryRewrite(alreadyPushed);
-  if (mode === 'hard') warnDestructive('All changes from the undone commit will be permanently lost.');
+  if (mode === 'hard')
+    warnDestructive('All changes from the undone commit will be permanently lost.');
 
-  const confirmed = await confirmPrompt('Proceed?', false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  const confirmed = opts.yes || opts.dryRun ? true : await confirmPrompt('Proceed?', false);
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would run: git reset --${mode} HEAD~1`);
+    return;
+  }
 
   const r = git(['reset', `--${mode}`, 'HEAD~1'], cwd);
   if (r.ok) {
     success(`Last commit undone (${mode}).`);
-    if (mode === 'soft')  info('Changes are staged. Run "gsf commit" to recommit.');
+    if (mode === 'soft') info('Changes are staged. Run "gsf commit" to recommit.');
     if (mode === 'mixed') info('Changes are unstaged. Run "gsf commit" to restage and recommit.');
-    if (alreadyPushed)    warning('Run "gsf push" — force push will be needed.');
+    if (alreadyPushed) warning('Run "gsf push" — force push will be needed.');
   } else {
     error(`Reset failed: ${r.err}`);
   }
@@ -312,11 +402,14 @@ async function flowResetLast(cwd: string, mode: 'soft' | 'mixed' | 'hard'): Prom
 
 // ── Flow: go back N commits ────────────────────────────────────────────────
 
-async function flowResetN(cwd: string): Promise<void> {
+async function flowResetN(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Go Back N Commits');
 
   const commits = getRecentCommits(15, cwd);
-  if (commits.length === 0) { info('No commits found.'); return; }
+  if (commits.length === 0) {
+    info('No commits found.');
+    return;
+  }
 
   info('Recent commits:');
   commits.forEach((c, i) => {
@@ -326,7 +419,10 @@ async function flowResetN(cwd: string): Promise<void> {
 
   const nStr = await inputPrompt('How many commits to go back?', '1');
   const n = parseInt(nStr, 10);
-  if (!n || n < 1 || n > commits.length) { error('Invalid number.'); return; }
+  if (!n || n < 1 || n > commits.length) {
+    error('Invalid number.');
+    return;
+  }
 
   const modeChoice = await selectPrompt('Reset mode:', [
     'mixed — keep changes unstaged  (recommended)',
@@ -339,12 +435,26 @@ async function flowResetN(cwd: string): Promise<void> {
   const alreadyPushed = aheadCount !== -1 && n > aheadCount;
 
   blank();
-  info(`Will reset ${n} commit(s) — landing on: ${commits[n - 1].shortSha} "${commits[n - 1].msg}"`);
+  const targetCommit = commits[n - 1];
+  if (!targetCommit) {
+    error('Invalid commit selection');
+    return;
+  }
+  info(`Will reset ${n} commit(s) — landing on: ${targetCommit.shortSha} "${targetCommit.msg}"`);
   warnHistoryRewrite(alreadyPushed);
-  if (mode === 'hard') warnDestructive(`Changes from the last ${n} commit(s) will be permanently lost.`);
+  if (mode === 'hard')
+    warnDestructive(`Changes from the last ${n} commit(s) will be permanently lost.`);
 
-  const confirmed = await confirmPrompt('Proceed?', false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  const confirmed = opts.yes || opts.dryRun ? true : await confirmPrompt('Proceed?', false);
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would run: git reset --${mode} HEAD~${n}`);
+    return;
+  }
 
   const r = git(['reset', `--${mode}`, `HEAD~${n}`], cwd);
   if (r.ok) {
@@ -357,17 +467,27 @@ async function flowResetN(cwd: string): Promise<void> {
 
 // ── Flow: reset to specific commit ────────────────────────────────────────
 
-async function flowResetToCommit(cwd: string): Promise<void> {
+async function flowResetToCommit(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Reset to a Specific Commit');
 
-  const commits = getRecentCommits(20, cwd);
-  if (commits.length === 0) { info('No commits found.'); return; }
+  const historyLimit = getConfig().ui?.historyLimit ?? 20;
+  const commits = getRecentCommits(historyLimit, cwd);
+  if (commits.length === 0) {
+    info('No commits found.');
+    return;
+  }
 
   const labels = commits.map((c) => `${c.shortSha}  ${c.date.padEnd(14)}  ${c.msg}`);
-  const chosen = await selectPrompt('Choose the commit to land on (this and all later commits will be undone):', labels);
+  const chosen = await selectPrompt(
+    'Choose the commit to land on (this and all later commits will be undone):',
+    labels
+  );
   const idx = labels.indexOf(chosen);
   const target = commits[idx];
-  if (!target) { info('Cancelled.'); return; }
+  if (!target) {
+    info('Cancelled.');
+    return;
+  }
 
   const modeChoice = await selectPrompt('Reset mode:', [
     'mixed — keep changes unstaged  (recommended)',
@@ -382,10 +502,19 @@ async function flowResetToCommit(cwd: string): Promise<void> {
   blank();
   info(`Will reset to: ${target.shortSha}  "${target.msg}"`);
   warnHistoryRewrite(alreadyPushed);
-  if (mode === 'hard') warnDestructive('All changes between now and the chosen commit will be permanently lost.');
+  if (mode === 'hard')
+    warnDestructive('All changes between now and the chosen commit will be permanently lost.');
 
-  const confirmed = await confirmPrompt('Proceed?', false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  const confirmed = opts.yes || opts.dryRun ? true : await confirmPrompt('Proceed?', false);
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would run: git reset --${mode} ${target.sha} (${target.shortSha})`);
+    return;
+  }
 
   const r = git(['reset', `--${mode}`, target.sha], cwd);
   if (r.ok) {
@@ -398,7 +527,7 @@ async function flowResetToCommit(cwd: string): Promise<void> {
 
 // ── Flow: reset to remote ─────────────────────────────────────────────────
 
-async function flowResetToRemote(cwd: string): Promise<void> {
+async function flowResetToRemote(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Reset to Remote Branch State');
 
   const upstream = getUpstreamBranch(cwd);
@@ -415,8 +544,19 @@ async function flowResetToRemote(cwd: string): Promise<void> {
 
   warnDestructive(`All local commits not on ${upstream} and all uncommitted changes will be lost.`);
 
-  const confirmed = await confirmPrompt(`Reset to ${upstream}? This cannot be undone.`, false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  const confirmed =
+    opts.yes || opts.dryRun
+      ? true
+      : await confirmPrompt(`Reset to ${upstream}? This cannot be undone.`, false);
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would run: git fetch && git reset --hard ${upstream}`);
+    return;
+  }
 
   // Fetch latest from remote first
   info('Fetching from remote...');
@@ -435,7 +575,7 @@ async function flowResetToRemote(cwd: string): Promise<void> {
 
 // ── Flow: safe revert (new commit) ────────────────────────────────────────
 
-async function flowSafeRevert(cwd: string): Promise<void> {
+async function flowSafeRevert(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Safely Undo a Commit (git revert)');
 
   blank();
@@ -443,19 +583,34 @@ async function flowSafeRevert(cwd: string): Promise<void> {
   info('This is safe for shared/pushed history — no force push needed.');
   blank();
 
-  const commits = getRecentCommits(20, cwd);
-  if (commits.length === 0) { info('No commits found.'); return; }
+  const historyLimit = getConfig().ui?.historyLimit ?? 20;
+  const commits = getRecentCommits(historyLimit, cwd);
+  if (commits.length === 0) {
+    info('No commits found.');
+    return;
+  }
 
   const labels = commits.map((c) => `${c.shortSha}  ${c.date.padEnd(14)}  ${c.msg}`);
   const chosen = await selectPrompt('Choose the commit to revert:', labels);
   const target = commits[labels.indexOf(chosen)];
-  if (!target) { info('Cancelled.'); return; }
+  if (!target) {
+    info('Cancelled.');
+    return;
+  }
 
   blank();
   info(`Will create a new commit that undoes: ${target.shortSha}  "${target.msg}"`);
 
-  const confirmed = await confirmPrompt('Proceed?', false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  const confirmed = opts.yes || opts.dryRun ? true : await confirmPrompt('Proceed?', false);
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would create a revert commit undoing: ${target.shortSha}  "${target.msg}"`);
+    return;
+  }
 
   const r = git(['revert', '--no-commit', target.sha], cwd);
   if (!r.ok) {
@@ -485,7 +640,7 @@ async function flowSafeRevert(cwd: string): Promise<void> {
 
 // ── Flow: discard working directory changes ────────────────────────────────
 
-async function flowDiscardWorkingChanges(cwd: string): Promise<void> {
+async function flowDiscardWorkingChanges(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Discard Uncommitted Changes');
 
   const r = git(['diff', '--name-only'], cwd);
@@ -507,15 +662,36 @@ async function flowDiscardWorkingChanges(cwd: string): Promise<void> {
   ]);
   if (scope === 'Cancel') return;
 
-  const targets = scope === 'All changes in all files'
-    ? modified
-    : await smartFileSelectPrompt('Select files to discard', modified);
+  const targets =
+    scope === 'All changes in all files'
+      ? modified
+      : await smartFileSelectPrompt('Select files to discard', modified);
 
-  if (targets.length === 0) { info('Nothing selected.'); return; }
+  if (targets.length === 0) {
+    info('Nothing selected.');
+    return;
+  }
+
+  for (const f of targets) {
+    const vf = validateFilePath(f);
+    if (!vf.valid) {
+      error(`Invalid file path "${f}": ${vf.reason}`);
+      return;
+    }
+  }
 
   warnDestructive(`Changes in ${targets.length} file(s) will be lost and cannot be recovered.`);
-  const confirmed = await confirmPrompt('Discard these changes?', false);
-  if (!confirmed) { info('Cancelled.'); return; }
+  const confirmed =
+    opts.yes || opts.dryRun ? true : await confirmPrompt('Discard these changes?', false);
+  if (!confirmed) {
+    info('Cancelled.');
+    return;
+  }
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would discard changes in ${targets.length} file(s).`);
+    return;
+  }
 
   const restore = git(['restore', '--', ...targets], cwd);
   if (restore.ok) {
@@ -530,25 +706,36 @@ async function flowDiscardWorkingChanges(cwd: string): Promise<void> {
 
 // ── Flow: unstage ──────────────────────────────────────────────────────────
 
-async function flowUnstage(cwd: string): Promise<void> {
+async function flowUnstage(cwd: string, opts: RunOptions = {}): Promise<void> {
   section('Unstage Files');
 
   const r = git(['diff', '--cached', '--name-only'], cwd);
   const staged = r.out.split('\n').filter(Boolean);
-  if (staged.length === 0) { info('No staged files.'); return; }
+  if (staged.length === 0) {
+    info('No staged files.');
+    return;
+  }
 
-  const scope = await selectPrompt(`${staged.length} staged file(s). What do you want to unstage?`, [
-    'All staged files',
-    'Choose specific files',
-    'Cancel',
-  ]);
+  const scope = await selectPrompt(
+    `${staged.length} staged file(s). What do you want to unstage?`,
+    ['All staged files', 'Choose specific files', 'Cancel']
+  );
   if (scope === 'Cancel') return;
 
-  const targets = scope === 'All staged files'
-    ? staged
-    : await smartFileSelectPrompt('Select files to unstage', staged);
+  const targets =
+    scope === 'All staged files'
+      ? staged
+      : await smartFileSelectPrompt('Select files to unstage', staged);
 
-  if (targets.length === 0) { info('Nothing selected.'); return; }
+  if (targets.length === 0) {
+    info('Nothing selected.');
+    return;
+  }
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would unstage ${targets.length} file(s).`);
+    return;
+  }
 
   const hasC = hasCommits(cwd);
   const restoreArgs = hasC
@@ -560,5 +747,65 @@ async function flowUnstage(cwd: string): Promise<void> {
     success(`${targets.length} file(s) unstaged. Changes kept in working directory.`);
   } else {
     error(`Failed: ${result.err}`);
+  }
+}
+
+// ── Flow: cherry-pick ──────────────────────────────────────────────────────
+
+async function flowCherryPick(cwd: string, opts: RunOptions = {}): Promise<void> {
+  section('Cherry-pick a Commit from Another Branch');
+
+  blank();
+  info('Fetching recent commits from all branches...');
+
+  const historyLimit = getConfig().ui?.historyLimit ?? 20;
+  const r = git(['log', '--oneline', '--all', '--not', 'HEAD', `-${historyLimit}`], cwd);
+  const lines = r.out.split('\n').filter(Boolean);
+
+  if (lines.length === 0) {
+    info('No commits found on other branches that are not already in your current branch.');
+    return;
+  }
+
+  blank();
+  const chosen = await selectPrompt('Select a commit to cherry-pick:', [...lines, '← Cancel']);
+  if (chosen.includes('← Cancel')) return;
+
+  const sha = chosen.split(' ')[0] ?? '';
+  if (!sha) return;
+
+  blank();
+  keyValue('Commit', chosen);
+  blank();
+
+  const mode = await selectPrompt('How do you want to apply it?', [
+    'Cherry-pick directly  (creates a new commit)',
+    'Stage only, no commit  (--no-commit, review before committing)',
+    '← Cancel',
+  ]);
+  if (mode.includes('← Cancel')) return;
+
+  const noCommit = mode.includes('no commit');
+
+  if (opts.dryRun) {
+    info(`[DRY RUN] Would cherry-pick ${sha}${noCommit ? ' --no-commit' : ''}`);
+    return;
+  }
+
+  const args = ['cherry-pick', ...(noCommit ? ['--no-commit'] : []), sha];
+  const result = spawnSync('git', args, { cwd, stdio: 'inherit' });
+
+  if (result.status === 0) {
+    if (noCommit) {
+      success('Changes staged. Review with "git diff --cached", then run "gsf commit".');
+    } else {
+      success('Cherry-pick applied successfully.');
+    }
+  } else {
+    warning('Cherry-pick produced conflicts. Resolve them, then:');
+    console.log('  git add <resolved-files>');
+    console.log('  git cherry-pick --continue');
+    blank();
+    info('To abort: git cherry-pick --abort');
   }
 }

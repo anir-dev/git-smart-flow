@@ -3,17 +3,33 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node"],
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "outDir": "./dist",
     "rootDir": "./src",
+
+    // Strictness
     "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+
+    // Module interop
     "esModuleInterop": true,
-    "skipLibCheck": true,
+    "verbatimModuleSyntax": false,
+
+    // Output
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "removeComments": false,
+
+    // Safety
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "tests", "scripts"]
 }

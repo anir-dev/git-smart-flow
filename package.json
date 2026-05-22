@@ -10,16 +10,44 @@
     "developer-tools",
     "open-source"
   ],
-  "homepage": "https://github.com/YOUR_USERNAME/git-smart-flow",
+  "homepage": "https://github.com/anir-dev/git-smart-flow",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/git-smart-flow.git"
+    "url": "https://github.com/anir-dev/git-smart-flow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/anir-dev/git-smart-flow/issues"
+  },
+  "author": {
+    "name": "anirdev",
+    "url": "https://github.com/anir-dev"
   },
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
+  "files": [
+    "bin",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/cli.js",
+      "types": "./dist/cli.d.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bin": {
     "git-smart-flow": "./bin/git-smart-flow.js",
     "gsf": "./bin/gsf.js",
@@ -32,11 +60,15 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
-    "test": "find tests -name '*.test.ts' | xargs npx tsx --test",
+    "test": "find tests -name '*.test.ts' | sort | xargs tsx --test",
+    "test:coverage": "node --test --experimental-test-coverage --import tsx/esm 'tests/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
     "smoke": "bash scripts/smoke-test.sh",
-    "prepare-release": "tsx scripts/prepare-release.ts",
-    "release": "release-it",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "format": "prettier --write src tests",
+    "format:check": "prettier --check src tests",
+    "prepare": "husky"
   },
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
@@ -55,16 +87,22 @@
     "react": "^18.0.0"
   },
   "devDependencies": {
-    "@release-it/conventional-changelog": "^8.0.0",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@types/asciichart": "^1.5.3",
     "@types/figlet": "^1.5.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
-    "pkg": "^5.8.1",
-    "release-it": "^17.0.0",
+    "@yao-pkg/pkg": "^6.19.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.4",
+    "prettier": "^3.8.3",
     "tsx": "^4.0.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.59.3"
   },
   "pkg": {
     "scripts": "dist/**/*.js",
@@ -74,5 +112,14 @@
       "node18-linux-x64"
     ],
     "outputPath": "downloads"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }

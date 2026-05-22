@@ -59,10 +59,12 @@ export async function ensureGitRepo(cwd = process.cwd()): Promise<boolean> {
 async function wizardDefaultBranch(cwd: string): Promise<void> {
   section('Default Branch Name');
 
-  const choice = await selectPrompt(
-    'Choose the default branch name:',
-    ['main  (recommended)', 'master', 'develop', 'Custom…']
-  );
+  const choice = await selectPrompt('Choose the default branch name:', [
+    'main  (recommended)',
+    'master',
+    'develop',
+    'Custom…',
+  ]);
 
   let branchName = 'main';
   if (choice.startsWith('master')) branchName = 'master';
@@ -107,7 +109,9 @@ async function wizardGitIdentity(cwd: string): Promise<void> {
     setGitUserConfig(name.trim(), email.trim(), cwd);
     success(`Git identity set: ${name.trim()} <${email.trim()}>`);
   } else {
-    warning('Identity not set — you can configure it later with:\n  git config user.name "Your Name"\n  git config user.email "you@example.com"');
+    warning(
+      'Identity not set — you can configure it later with:\n  git config user.name "Your Name"\n  git config user.email "you@example.com"'
+    );
   }
   blank();
 }
@@ -123,7 +127,10 @@ async function wizardGitignore(cwd: string): Promise<void> {
   if (hasGitignore(cwd)) {
     info('.gitignore already exists.');
     const append = await confirmPrompt(`Append recommended ${detectedLabel} entries?`, false);
-    if (!append) { blank(); return; }
+    if (!append) {
+      blank();
+      return;
+    }
     const existing = readGitignore(cwd);
     const template = getTemplate(detected);
     writeGitignore(existing + '\n# --- Added by git-smart-flow ---\n' + template, cwd);
@@ -155,11 +162,11 @@ async function wizardGitignore(cwd: string): Promise<void> {
 
   // Resolve chosen type from label
   let chosenType = detected;
-  if (typeChoice.includes('Node.js'))   chosenType = 'node';
-  else if (typeChoice.includes('Python'))  chosenType = 'python';
-  else if (typeChoice.includes('Java'))    chosenType = 'java';
-  else if (typeChoice.includes('Go'))      chosenType = 'go';
-  else if (typeChoice.includes('Rust'))    chosenType = 'rust';
+  if (typeChoice.includes('Node.js')) chosenType = 'node';
+  else if (typeChoice.includes('Python')) chosenType = 'python';
+  else if (typeChoice.includes('Java')) chosenType = 'java';
+  else if (typeChoice.includes('Go')) chosenType = 'go';
+  else if (typeChoice.includes('Rust')) chosenType = 'rust';
   else if (typeChoice.includes('Generic')) chosenType = 'generic';
 
   writeGitignore(getTemplate(chosenType), cwd);

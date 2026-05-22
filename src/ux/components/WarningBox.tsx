@@ -18,10 +18,15 @@ export function WarningBox({ title = '⚠️  Atención', messages }: Props): JS
       paddingX={1}
       width={width}
     >
-      <Text bold color={theme.warning}>{title}</Text>
+      <Text bold color={theme.warning}>
+        {title}
+      </Text>
       <Text> </Text>
       {lines.map((line, i) => (
-        <Text key={i} color="white">  {line}</Text>
+        <Text key={i} color="white">
+          {' '}
+          {line}
+        </Text>
       ))}
     </Box>
   );

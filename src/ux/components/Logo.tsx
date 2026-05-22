@@ -25,7 +25,9 @@ export function Logo({ version }: Props): JSX.Element {
     <Box flexDirection="column" marginBottom={1}>
       <Text color={theme.accent}>{art}</Text>
       <Box marginTop={-1} paddingLeft={2} gap={1}>
-        <Text bold color="white">Git Smart Flow</Text>
+        <Text bold color="white">
+          Git Smart Flow
+        </Text>
         <Text color={theme.muted}>v{version}</Text>
       </Box>
       <Box paddingLeft={2}>

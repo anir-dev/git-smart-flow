@@ -1,0 +1,20 @@
+# CODEOWNERS — automatically request reviews from the right people.
+# Format: <pattern> <owner> [<owner> ...]
+# The last matching rule wins.
+# Reference: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: all files require review from the core maintainer.
+*                               @anir-dev
+
+# Security-sensitive paths always require maintainer sign-off.
+src/security/                   @anir-dev
+src/git/validate.ts             @anir-dev
+.github/workflows/              @anir-dev
+.github/dependabot.yml          @anir-dev
+
+# Provider integrations need provider-specific review if contributors own one.
+src/providers/                  @anir-dev
+
+# Documentation can have a lighter touch.
+docs/                           @anir-dev
+*.md                            @anir-dev

@@ -1,5 +1,6 @@
 import { execSync, spawnSync } from 'child_process';
 import { ensureGitRepo } from '../git/ensure-repo.js';
+import { validateRemoteName } from '../git/validate.js';
 import {
   fetchRemote,
   getAheadBehindCount,
@@ -8,14 +9,22 @@ import {
   getLastFetchTime,
   getUpstream,
   hasMergeConflicts,
+  listRemotes,
 } from '../git/repo.js';
-import { blank, divider, error, info, keyValue, section, success, warning } from '../ux/display.js';
-import { confirmPrompt, selectPrompt, smartFileSelectPrompt } from '../ux/prompt.js';
+import { getConfig } from '../config/config.js';
+import { blank, error, info, keyValue, section, success, warning } from '../ux/display.js';
+import { confirmPrompt, selectPrompt } from '../ux/prompt.js';
 import { failSpinner, startSpinner, succeedSpinner } from '../ux/spinner.js';
+
+async function resolveRemote(cwd: string): Promise<string> {
+  const remotes = listRemotes(cwd);
+  if (remotes.length <= 1) return remotes[0] ?? 'origin';
+  return selectPrompt('¿Qué remoto usar?', remotes);
+}
 
 function relativeTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60)   return `${s}s ago`;
+  if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
@@ -40,7 +49,25 @@ function getOutgoingCommits(upstream: string, cwd: string): string[] {
 
 export async function runSync(): Promise<void> {
   const cwd = process.cwd();
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
+
+  const remote = await resolveRemote(cwd);
+
+  const config = getConfig();
+  const syncCommitsShown = config.ui?.syncCommitsShown ?? 5;
+  const autoFetch = (config.git as Record<string, unknown>).autoFetch as boolean | undefined;
+  if (autoFetch !== false) {
+    const thresholdMinutes =
+      ((config.git as Record<string, unknown>).autoFetchIntervalMinutes as number | undefined) ?? 5;
+    const lastFetch = getLastFetchTime(cwd);
+    if (!lastFetch || (Date.now() - lastFetch.getTime()) / 60000 >= thresholdMinutes) {
+      spawnSync('git', ['fetch', '--quiet', '--prune', remote], {
+        cwd,
+        stdio: 'pipe',
+        timeout: 10000,
+      });
+    }
+  }
 
   const upstream = getUpstream(cwd);
   if (!upstream) {
@@ -64,7 +91,13 @@ export async function runSync(): Promise<void> {
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   startSpinner('Fetching from remote...');
-  const fetchResult = fetchRemote(cwd);
+  const fetchResult =
+    remote === 'origin'
+      ? fetchRemote(cwd)
+      : (() => {
+          const r = spawnSync('git', ['fetch', remote], { cwd, encoding: 'utf-8', timeout: 15000 });
+          return { ok: r.status === 0, output: ((r.stdout ?? '') + (r.stderr ?? '')).trim() };
+        })();
   if (fetchResult.ok) {
     succeedSpinner('Fetch complete');
   } else {
@@ -91,16 +124,18 @@ export async function runSync(): Promise<void> {
   if (ahead > 0) {
     const commits = getOutgoingCommits(upstream, cwd);
     warning(`${ahead} local commit(s) not yet pushed to ${upstream}:`);
-    commits.slice(0, 5).forEach((c) => console.log(`  ↑  ${c}`));
-    if (commits.length > 5) info(`  ... and ${commits.length - 5} more`);
+    commits.slice(0, syncCommitsShown).forEach((c) => console.log(`  ↑  ${c}`));
+    if (commits.length > syncCommitsShown)
+      info(`  ... and ${commits.length - syncCommitsShown} more`);
     blank();
   }
 
   if (behind > 0) {
     const commits = getIncomingCommits(upstream, cwd);
     info(`${behind} new commit(s) on ${upstream} not yet in local branch:`);
-    commits.slice(0, 5).forEach((c) => console.log(`  ↓  ${c}`));
-    if (commits.length > 5) info(`  ... and ${commits.length - 5} more`);
+    commits.slice(0, syncCommitsShown).forEach((c) => console.log(`  ↓  ${c}`));
+    if (commits.length > syncCommitsShown)
+      info(`  ... and ${commits.length - syncCommitsShown} more`);
     blank();
   }
 
@@ -115,10 +150,12 @@ export async function runSync(): Promise<void> {
   if (behind > 0 && ahead === 0) {
     options.push('Pull (fast-forward) — bring in remote commits');
     options.push('Pull (rebase) — bring in remote commits, reapply mine on top  [clean history]');
+    options.push('Actualizar rama del PR (gh pr update-branch)');
   } else if (behind > 0 && ahead > 0) {
     options.push('Pull (merge) — merge remote commits, keep both histories');
     options.push('Pull (rebase) — reapply my commits on top of remote  [clean history]');
     options.push('Push first, then pull — only if remote allows force push');
+    options.push('Actualizar rama del PR (gh pr update-branch)');
   } else if (behind === 0 && ahead > 0) {
     options.push('Push my commits to remote');
   }
@@ -136,7 +173,7 @@ export async function runSync(): Promise<void> {
   } else if (choice.startsWith('Pull (rebase)')) {
     await doPull(cwd, upstream, 'rebase');
   } else if (choice.startsWith('Push my commits')) {
-    await doPush(cwd, ahead, upstream);
+    doPush(cwd, ahead, upstream);
   } else if (choice.startsWith('Push first')) {
     warning('This requires a force push and can overwrite remote commits.');
     const confirm = await confirmPrompt('Force push first?', false);
@@ -144,20 +181,93 @@ export async function runSync(): Promise<void> {
       try {
         execSync('git push --force-with-lease', { cwd, stdio: 'inherit' });
         success('Pushed.');
-      } catch { error('Push failed.'); }
+      } catch {
+        error('Push failed.');
+      }
     }
+  } else if (choice.startsWith('Actualizar rama del PR')) {
+    await runPRUpdateBranch(cwd);
+  }
+}
+
+// ── PR Update Branch ──────────────────────────────────────────────────────
+
+async function runPRUpdateBranch(cwd: string): Promise<void> {
+  const ghResult = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' });
+  if (ghResult.status !== 0) {
+    error('Esta opción requiere GitHub CLI (gh) autenticado.');
+    info('  Instala: https://cli.github.com  |  Luego: gh auth login');
+    return;
+  }
+
+  const prResult = spawnSync('gh', ['pr', 'view', '--json', 'number,title,baseRefName'], {
+    cwd,
+    encoding: 'utf-8',
+    stdio: 'pipe',
+  });
+
+  if (prResult.status !== 0) {
+    warning('No se encontró un PR abierto para esta rama.');
+    return;
+  }
+
+  let prData: { number: number; title: string; baseRefName: string };
+  try {
+    prData = JSON.parse(prResult.stdout) as typeof prData;
+  } catch {
+    error('Error al obtener información del PR.');
+    return;
+  }
+
+  keyValue('PR', `#${prData.number} ${prData.title}`);
+  keyValue('Base', prData.baseRefName);
+  blank();
+
+  const strategy = await selectPrompt('¿Cómo actualizar la rama del PR?', [
+    'Merge (merge de la base en esta rama)',
+    'Rebase (rebase sobre la base)',
+    '← Cancelar',
+  ]);
+
+  if (strategy.includes('Cancelar')) return;
+
+  const rebaseFlag = strategy.startsWith('Rebase') ? ['--rebase'] : [];
+
+  startSpinner('Actualizando rama del PR...');
+  const updateResult = spawnSync(
+    'gh',
+    ['pr', 'update-branch', String(prData.number), ...rebaseFlag],
+    { cwd, encoding: 'utf-8', stdio: 'pipe' }
+  );
+
+  if (updateResult.status === 0) {
+    succeedSpinner(
+      'Rama del PR actualizada. Ejecuta "gsf sync" de nuevo para obtener los cambios.'
+    );
+  } else {
+    failSpinner('Error al actualizar: ' + (updateResult.stderr ?? ''));
   }
 }
 
 // ── Pull ──────────────────────────────────────────────────────────────────
 
-async function doPull(cwd: string, upstream: string, mode: 'ff-only' | 'merge' | 'rebase'): Promise<void> {
-  const [remote, ...branchParts] = upstream.split('/');
-  const remoteBranch = branchParts.join('/');
+async function doPull(
+  cwd: string,
+  upstream: string,
+  mode: 'ff-only' | 'merge' | 'rebase'
+): Promise<void> {
+  const upstreamParts = upstream.split('/');
+  const remote = upstreamParts[0] ?? '';
+  const remoteBranch = upstreamParts.slice(1).join('/');
+  const remoteCheck = validateRemoteName(remote);
+  if (!remoteCheck.valid) {
+    error(`Invalid remote name "${remote}": ${remoteCheck.reason}`);
+    return;
+  }
 
   const pullArgs: string[] = ['pull', remote, remoteBranch];
   if (mode === 'ff-only') pullArgs.push('--ff-only');
-  if (mode === 'rebase')  pullArgs.push('--rebase');
+  if (mode === 'rebase') pullArgs.push('--rebase');
 
   startSpinner(`Pulling (${mode})...`);
   const r = git(pullArgs, cwd);
@@ -186,7 +296,7 @@ async function doPull(cwd: string, upstream: string, mode: 'ff-only' | 'merge' |
 
 // ── Push ──────────────────────────────────────────────────────────────────
 
-async function doPush(cwd: string, ahead: number, upstream: string): Promise<void> {
+function doPush(cwd: string, ahead: number, upstream: string): void {
   info(`Pushing ${ahead} commit(s) to ${upstream}...`);
   try {
     execSync('git push', { cwd, stdio: 'inherit' });

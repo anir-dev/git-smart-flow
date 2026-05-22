@@ -5,7 +5,19 @@ import type { AIContext, CommitConvention } from '../src/types/index.js';
 
 const BASE_CONVENTION: CommitConvention = {
   type: 'conventional',
-  allowedTypes: ['feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert'],
+  allowedTypes: [
+    'feat',
+    'fix',
+    'docs',
+    'style',
+    'refactor',
+    'perf',
+    'test',
+    'build',
+    'ci',
+    'chore',
+    'revert',
+  ],
   scopeRequired: false,
   maxHeaderLength: 100,
   requireTicket: 'auto',
@@ -37,7 +49,10 @@ describe('heuristic-provider', () => {
   it('generates a conventional commit message', async () => {
     const ctx = makeContext([{ path: 'src/auth/login.ts', status: 'modified' }]);
     const msg = await provider.generateCommitMessage(ctx);
-    assert.match(msg, /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?: .+/);
+    assert.match(
+      msg,
+      /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?: .+/
+    );
   });
 
   it('generates a test type for test files', async () => {
@@ -60,7 +75,10 @@ describe('heuristic-provider', () => {
 
   it('respects max header length', async () => {
     const ctx = makeContext(
-      Array.from({ length: 10 }, (_, i) => ({ path: `src/module-${i}/component-${i}-very-long-name.ts`, status: 'modified' }))
+      Array.from({ length: 10 }, (_, i) => ({
+        path: `src/module-${i}/component-${i}-very-long-name.ts`,
+        status: 'modified',
+      }))
     );
     const msg = await provider.generateCommitMessage(ctx);
     assert.ok(msg.length <= BASE_CONVENTION.maxHeaderLength, `Message too long: ${msg.length}`);

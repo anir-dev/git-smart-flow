@@ -3,31 +3,50 @@ import type { AIContext, PRProposal, ProviderName } from '../types/index.js';
 import { BaseProvider } from './base.provider.js';
 
 const DIR_TYPE_MAP: Record<string, string> = {
-  test: 'test', tests: 'test', __tests__: 'test', spec: 'test',
-  docs: 'docs', doc: 'docs',
-  '.github': 'ci', '.husky': 'chore', ci: 'ci',
-  scripts: 'chore', migrations: 'chore',
-  config: 'chore', configs: 'chore',
-  types: 'refactor', interfaces: 'refactor',
-  styles: 'style', css: 'style', scss: 'style',
+  test: 'test',
+  tests: 'test',
+  __tests__: 'test',
+  spec: 'test',
+  docs: 'docs',
+  doc: 'docs',
+  '.github': 'ci',
+  '.husky': 'chore',
+  ci: 'ci',
+  scripts: 'chore',
+  migrations: 'chore',
+  config: 'chore',
+  configs: 'chore',
+  types: 'refactor',
+  interfaces: 'refactor',
+  styles: 'style',
+  css: 'style',
+  scss: 'style',
 };
 
 const EXT_TYPE_MAP: Record<string, string> = {
-  md: 'docs', mdx: 'docs',
-  yml: 'ci', yaml: 'ci',
-  sh: 'chore', ps1: 'chore',
+  md: 'docs',
+  mdx: 'docs',
+  yml: 'ci',
+  yaml: 'ci',
+  sh: 'chore',
+  ps1: 'chore',
   sql: 'chore',
-  css: 'style', scss: 'style', less: 'style',
-  test: 'test', spec: 'test',
+  css: 'style',
+  scss: 'style',
+  less: 'style',
+  test: 'test',
+  spec: 'test',
 };
 
 export class HeuristicProvider extends BaseProvider {
   name: ProviderName = 'heuristic';
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async isAvailable(): Promise<boolean> {
     return true;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async generateCommitMessage(context: AIContext): Promise<string> {
     const { changedFiles, detectedCommitConvention: conv, ticket } = context;
 
@@ -36,7 +55,10 @@ export class HeuristicProvider extends BaseProvider {
     }
 
     const type = inferType(changedFiles.map((f) => f.path));
-    const scope = inferScope(changedFiles.map((f) => f.path), conv.allowedScopes);
+    const scope = inferScope(
+      changedFiles.map((f) => f.path),
+      conv.allowedScopes
+    );
     const subject = inferSubject(changedFiles.map((f) => f.path));
     const ticketSuffix = ticket ? ` (${ticket})` : '';
 
@@ -48,12 +70,16 @@ export class HeuristicProvider extends BaseProvider {
       : message.substring(0, conv.maxHeaderLength - 3) + '...';
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async generatePRDescription(context: AIContext): Promise<PRProposal> {
     const { changedFiles, branch, ticket } = context;
     const files = changedFiles.map((f) => `- \`${f.path}\` (${f.status})`).join('\n');
     const ticketLine = ticket ? `\n\nRelated to: ${ticket}` : '';
 
-    const title = buildPRTitle(branch, changedFiles.map((f) => f.path));
+    const title = buildPRTitle(
+      branch,
+      changedFiles.map((f) => f.path)
+    );
 
     const body = [
       `## Context`,
@@ -93,18 +119,18 @@ function inferType(paths: string[]): string {
 
   if (Object.keys(votes).length === 0) return 'feat';
 
-  return Object.entries(votes).sort(([, a], [, b]) => b - a)[0][0];
+  return Object.entries(votes).sort(([, a], [, b]) => b - a)[0]?.[0] ?? 'feat';
 }
 
 function inferScope(paths: string[], allowedScopes?: string[]): string | undefined {
   if (paths.length === 0) return undefined;
 
-  const firstParts = paths.map((p) => p.split('/')[0]).filter((p) => !p.startsWith('.'));
+  const firstParts = paths.map((p) => p.split('/')[0] ?? '').filter((p) => !p.startsWith('.'));
   const common = mostCommon(firstParts);
   if (!common || common === 'src') {
     const secondParts = paths
       .filter((p) => p.includes('/'))
-      .map((p) => p.split('/')[1])
+      .map((p) => p.split('/')[1] ?? '')
       .filter(Boolean);
     const commonSecond = mostCommon(secondParts);
     if (commonSecond && (!allowedScopes || allowedScopes.includes(commonSecond))) {
@@ -119,18 +145,19 @@ function inferScope(paths: string[], allowedScopes?: string[]): string | undefin
 
 function inferSubject(paths: string[]): string {
   if (paths.length === 1) {
-    const parts = paths[0].split('/');
-    const filename = parts[parts.length - 1].replace(/\.[^.]+$/, '');
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const parts = paths[0]!.split('/');
+    const filename = (parts[parts.length - 1] ?? '').replace(/\.[^.]+$/, '');
     return `update ${toKebab(filename)}`;
   }
   if (paths.length <= 3) {
     const parts = paths.map((p) => {
       const segs = p.split('/');
-      return segs[segs.length - 1].replace(/\.[^.]+$/, '');
+      return (segs[segs.length - 1] ?? '').replace(/\.[^.]+$/, '');
     });
     return `update ${parts.join(', ')}`;
   }
-  const dirs = [...new Set(paths.map((p) => p.split('/')[0]))];
+  const dirs = [...new Set(paths.map((p) => p.split('/')[0] ?? ''))];
   return `update ${dirs.slice(0, 2).join(', ')} files`;
 }
 
@@ -148,7 +175,7 @@ function mostCommon(arr: string[]): string | undefined {
   const counts: Record<string, number> = {};
   for (const item of arr) counts[item] = (counts[item] ?? 0) + 1;
   const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a);
-  return sorted[0][0];
+  return sorted[0]?.[0];
 }
 
 function toKebab(str: string): string {

@@ -18,10 +18,15 @@ export function ErrorBox({ title = 'Error', messages }: Props): JSX.Element {
       paddingX={1}
       width={width}
     >
-      <Text bold color={theme.error}>✖  {title}</Text>
+      <Text bold color={theme.error}>
+        ✖ {title}
+      </Text>
       <Text> </Text>
       {lines.map((line, i) => (
-        <Text key={i} color="white">  {line}</Text>
+        <Text key={i} color="white">
+          {' '}
+          {line}
+        </Text>
       ))}
     </Box>
   );

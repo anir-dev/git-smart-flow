@@ -51,7 +51,7 @@ exit 0
 export async function runInstallHooks(): Promise<void> {
   const cwd = process.cwd();
 
-  if (!await ensureGitRepo(cwd)) return;
+  if (!(await ensureGitRepo(cwd))) return;
 
   const hooksDir = join(cwd, '.git', 'hooks');
   if (!existsSync(hooksDir)) {

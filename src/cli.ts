@@ -2,11 +2,15 @@ import { Command } from 'commander';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { spawnSync as _gitPassSpawn } from 'child_process';
+import { printStatusBar } from './ux/statusbar.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8')) as { version: string };
+const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8')) as {
+  version: string;
+};
 
 const program = new Command();
 
@@ -81,17 +85,21 @@ program
 program
   .command('push')
   .description('Validated push with confirmation')
-  .action(async () => {
+  .option('--dry-run', 'Preview push without executing')
+  .option('--yes', 'Skip confirmation prompts')
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => {
     const { runPush } = await import('./commands/push.js');
-    await runPush();
+    await runPush(opts);
   });
 
 program
   .command('merge')
   .description('Assisted merge with conflict handling')
-  .action(async () => {
+  .option('--dry-run', 'Preview merge without executing')
+  .option('--yes', 'Skip confirmation prompts')
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => {
     const { runMerge } = await import('./commands/merge.js');
-    await runMerge();
+    await runMerge(opts);
   });
 
 program
@@ -145,9 +153,11 @@ program
 program
   .command('revert')
   .description('Undo / revert wizard: remove bad files, reset commits, revert to remote…')
-  .action(async () => {
+  .option('--dry-run', 'Preview undo operations without executing')
+  .option('--yes', 'Skip confirmation prompts')
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => {
     const { runRevert } = await import('./commands/revert.js');
-    await runRevert();
+    await runRevert(opts);
   });
 
 program
@@ -165,5 +175,70 @@ program
     const { runLog } = await import('./commands/log.js');
     await runLog();
   });
+
+program
+  .command('stash')
+  .description('Stash manager: save, list, apply, drop')
+  .action(async () => {
+    const { runStash } = await import('./commands/stash.js');
+    await runStash();
+  });
+
+program
+  .command('tag')
+  .description('Tag manager: list, create, delete, push tags')
+  .action(async () => {
+    const { runTag } = await import('./commands/tag.js');
+    await runTag();
+  });
+
+program
+  .command('reflog')
+  .description('Reflog viewer and commit recovery')
+  .action(async () => {
+    const { runReflog } = await import('./commands/reflog.js');
+    await runReflog();
+  });
+
+// ── Status bar — printed before every command action ──────────────────────
+program.hook('preAction', () => {
+  printStatusBar();
+});
+
+// ── Git passthrough — unknown commands delegate to git ─────────────────────
+const GSF_COMMANDS = new Set([
+  'setup',
+  'menu',
+  'branch',
+  'commit',
+  'commit-message',
+  'pr',
+  'validate',
+  'push',
+  'merge',
+  'doctor',
+  'config',
+  'aliases',
+  'install-hooks',
+  'repo-init',
+  'sync',
+  'revert',
+  'info',
+  'log',
+  'stash',
+  'tag',
+  'reflog',
+]);
+
+const _passthroughArg = process.argv[2];
+if (_passthroughArg && !GSF_COMMANDS.has(_passthroughArg) && !_passthroughArg.startsWith('-')) {
+  const _gitArgs = process.argv.slice(2);
+  const _isTTY = process.stderr.isTTY;
+  const _dim = _isTTY ? '\x1b[2m' : '';
+  const _reset = _isTTY ? '\x1b[0m' : '';
+  process.stderr.write(`${_dim}  (gsf → git ${_gitArgs.join(' ')})${_reset}\n`);
+  const _r = _gitPassSpawn('git', _gitArgs, { stdio: 'inherit' });
+  process.exit(_r.status ?? 0);
+}
 
 program.parse(process.argv);

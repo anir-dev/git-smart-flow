@@ -27,7 +27,19 @@ function validateCommitMessage(
   return { valid: errors.length === 0, errors };
 }
 
-const TYPES = ['feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert'];
+const TYPES = [
+  'feat',
+  'fix',
+  'docs',
+  'style',
+  'refactor',
+  'perf',
+  'test',
+  'build',
+  'ci',
+  'chore',
+  'revert',
+];
 
 describe('commit-validator', () => {
   it('validates a correct conventional commit', () => {

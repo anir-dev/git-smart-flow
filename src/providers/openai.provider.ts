@@ -17,6 +17,7 @@ export class OpenAIProvider extends BaseProvider {
     this.model = model ?? DEFAULT_MODEL;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async isAvailable(): Promise<boolean> {
     return this.apiKey.length > 0;
   }
@@ -27,7 +28,9 @@ export class OpenAIProvider extends BaseProvider {
       const prompt = this.buildCommitPrompt(context);
       const response = await this.chat(prompt);
       if (response) return response.trim();
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generateCommitMessage(context);
   }
 
@@ -40,7 +43,9 @@ export class OpenAIProvider extends BaseProvider {
         const parsed = parsePRJSON(response);
         if (parsed) return parsed;
       }
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generatePRDescription(context);
   }
 
@@ -59,7 +64,7 @@ export class OpenAIProvider extends BaseProvider {
       }),
     });
     if (!res.ok) return null;
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
     return data.choices?.[0]?.message?.content ?? null;
@@ -72,6 +77,8 @@ function parsePRJSON(raw: string): PRProposal | null {
     if (!match) return null;
     const parsed = JSON.parse(match[0]) as { title?: string; body?: string };
     if (parsed.title && parsed.body) return { title: parsed.title, body: parsed.body };
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
   return null;
 }
