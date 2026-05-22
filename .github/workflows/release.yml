@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'git-smart-flow-v*'
 
 # Required for npm provenance attestation (SLSA Level 2).
 permissions:
