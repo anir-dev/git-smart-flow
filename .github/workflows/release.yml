@@ -39,11 +39,9 @@ jobs:
         run: npm audit --audit-level=high --omit=dev
 
       # --provenance generates a signed SLSA provenance attestation.
-      # Requires id-token: write above and the package published to npmjs.com.
+      # Auth via OIDC Trusted Publishing — no token needed.
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Build standalone binaries
         run: npx @yao-pkg/pkg . --out-path downloads
