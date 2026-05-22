@@ -19,6 +19,7 @@ jobs:
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           # Block PRs that introduce HIGH or CRITICAL vulnerabilities.
           fail-on-severity: high

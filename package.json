@@ -60,7 +60,7 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
-    "test": "tsx --test 'tests/**/*.test.ts'",
+    "test": "find tests -name '*.test.ts' | sort | xargs tsx --test",
     "test:coverage": "node --test --experimental-test-coverage --import tsx/esm 'tests/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "smoke": "bash scripts/smoke-test.sh",
