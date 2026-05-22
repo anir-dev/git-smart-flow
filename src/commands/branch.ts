@@ -427,8 +427,8 @@ async function cleanMergedBranchesFlow(cwd: string): Promise<void> {
   const current = getCurrentBranch(cwd);
   const merged = (r.stdout ?? '')
     .split('\n')
-    .map(b => b.replace(/^\*?\s+/, '').trim())
-    .filter(b => b && b !== current && !isProtectedBranch(b, config.git.protectedBranches));
+    .map((b) => b.replace(/^\*?\s+/, '').trim())
+    .filter((b) => b && b !== current && !isProtectedBranch(b, config.git.protectedBranches));
 
   if (merged.length === 0) {
     info(`No hay ramas mergeadas en "${base}" que se puedan limpiar.`);
@@ -438,7 +438,7 @@ async function cleanMergedBranchesFlow(cwd: string): Promise<void> {
   }
 
   section(`Ramas mergeadas en "${base}"`);
-  merged.forEach(b => info('  ' + b));
+  merged.forEach((b) => info('  ' + b));
   blank();
 
   const confirmed = await confirmPrompt(
@@ -472,12 +472,16 @@ async function cleanMergedBranchesFlow(cwd: string): Promise<void> {
     if (remote) {
       for (const branch of merged) {
         const rDel = spawnSync('git', ['push', 'origin', '--delete', branch], {
-          cwd, encoding: 'utf-8', stdio: 'pipe',
+          cwd,
+          encoding: 'utf-8',
+          stdio: 'pipe',
         });
         if (rDel.status === 0) {
           success(`Remote eliminado: ${branch}`);
         } else {
-          info(`Remote: ${branch} — ${(rDel.stderr ?? '').trim() || 'no encontrado o ya eliminado'}`);
+          info(
+            `Remote: ${branch} — ${(rDel.stderr ?? '').trim() || 'no encontrado o ya eliminado'}`
+          );
         }
       }
     }

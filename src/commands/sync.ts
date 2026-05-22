@@ -57,10 +57,15 @@ export async function runSync(): Promise<void> {
   const syncCommitsShown = config.ui?.syncCommitsShown ?? 5;
   const autoFetch = (config.git as Record<string, unknown>).autoFetch as boolean | undefined;
   if (autoFetch !== false) {
-    const thresholdMinutes = (config.git as Record<string, unknown>).autoFetchIntervalMinutes as number | undefined ?? 5;
+    const thresholdMinutes =
+      ((config.git as Record<string, unknown>).autoFetchIntervalMinutes as number | undefined) ?? 5;
     const lastFetch = getLastFetchTime(cwd);
     if (!lastFetch || (Date.now() - lastFetch.getTime()) / 60000 >= thresholdMinutes) {
-      spawnSync('git', ['fetch', '--quiet', '--prune', remote], { cwd, stdio: 'pipe', timeout: 10000 });
+      spawnSync('git', ['fetch', '--quiet', '--prune', remote], {
+        cwd,
+        stdio: 'pipe',
+        timeout: 10000,
+      });
     }
   }
 
@@ -86,12 +91,13 @@ export async function runSync(): Promise<void> {
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   startSpinner('Fetching from remote...');
-  const fetchResult = remote === 'origin'
-    ? fetchRemote(cwd)
-    : (() => {
-        const r = spawnSync('git', ['fetch', remote], { cwd, encoding: 'utf-8', timeout: 15000 });
-        return { ok: r.status === 0, output: ((r.stdout ?? '') + (r.stderr ?? '')).trim() };
-      })();
+  const fetchResult =
+    remote === 'origin'
+      ? fetchRemote(cwd)
+      : (() => {
+          const r = spawnSync('git', ['fetch', remote], { cwd, encoding: 'utf-8', timeout: 15000 });
+          return { ok: r.status === 0, output: ((r.stdout ?? '') + (r.stderr ?? '')).trim() };
+        })();
   if (fetchResult.ok) {
     succeedSpinner('Fetch complete');
   } else {
@@ -119,7 +125,8 @@ export async function runSync(): Promise<void> {
     const commits = getOutgoingCommits(upstream, cwd);
     warning(`${ahead} local commit(s) not yet pushed to ${upstream}:`);
     commits.slice(0, syncCommitsShown).forEach((c) => console.log(`  ↑  ${c}`));
-    if (commits.length > syncCommitsShown) info(`  ... and ${commits.length - syncCommitsShown} more`);
+    if (commits.length > syncCommitsShown)
+      info(`  ... and ${commits.length - syncCommitsShown} more`);
     blank();
   }
 
@@ -127,7 +134,8 @@ export async function runSync(): Promise<void> {
     const commits = getIncomingCommits(upstream, cwd);
     info(`${behind} new commit(s) on ${upstream} not yet in local branch:`);
     commits.slice(0, syncCommitsShown).forEach((c) => console.log(`  ↓  ${c}`));
-    if (commits.length > syncCommitsShown) info(`  ... and ${commits.length - syncCommitsShown} more`);
+    if (commits.length > syncCommitsShown)
+      info(`  ... and ${commits.length - syncCommitsShown} more`);
     blank();
   }
 
@@ -233,7 +241,9 @@ async function runPRUpdateBranch(cwd: string): Promise<void> {
   );
 
   if (updateResult.status === 0) {
-    succeedSpinner('Rama del PR actualizada. Ejecuta "gsf sync" de nuevo para obtener los cambios.');
+    succeedSpinner(
+      'Rama del PR actualizada. Ejecuta "gsf sync" de nuevo para obtener los cambios.'
+    );
   } else {
     failSpinner('Error al actualizar: ' + (updateResult.stderr ?? ''));
   }

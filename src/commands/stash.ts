@@ -50,9 +50,7 @@ export async function runStash(): Promise<void> {
         continue;
       }
       const msg = await inputPrompt('Mensaje del stash (opcional, Enter para omitir)');
-      const args = msg.trim()
-        ? ['stash', 'push', '-u', '-m', msg.trim()]
-        : ['stash', 'push', '-u'];
+      const args = msg.trim() ? ['stash', 'push', '-u', '-m', msg.trim()] : ['stash', 'push', '-u'];
       const r = spawnSync('git', args, { cwd, encoding: 'utf-8', stdio: 'pipe' });
       if (r.status === 0) {
         success('Cambios guardados en stash.');

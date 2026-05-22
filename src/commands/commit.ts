@@ -153,7 +153,10 @@ async function amendFlow(cwd: string): Promise<void> {
       info('No hay ficheros sin stagear para añadir.');
       if (!changeMessage) return;
     } else {
-      const toStage = await smartFileSelectPrompt('Selecciona ficheros para añadir al amend', available);
+      const toStage = await smartFileSelectPrompt(
+        'Selecciona ficheros para añadir al amend',
+        available
+      );
       if (toStage.length > 0) {
         stageFiles(toStage, cwd);
       }
@@ -166,7 +169,10 @@ async function amendFlow(cwd: string): Promise<void> {
       info('Amend cancelado — no se proporcionó mensaje.');
       return;
     }
-    const result = spawnSync('git', ['commit', '--amend', '-m', newMessage], { cwd, stdio: 'inherit' });
+    const result = spawnSync('git', ['commit', '--amend', '-m', newMessage], {
+      cwd,
+      stdio: 'inherit',
+    });
     if (result.status !== 0) {
       error('git commit --amend falló.');
       return;

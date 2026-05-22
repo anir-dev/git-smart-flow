@@ -44,7 +44,10 @@ async function runInkLog(cwd: string, logLimit: number): Promise<void> {
 }
 
 function runPlainLog(cwd: string, logLimit: number): void {
-  spawnSync('git', ['log', '--graph', '--oneline', '--all', `-${logLimit}`], { cwd, stdio: 'inherit' });
+  spawnSync('git', ['log', '--graph', '--oneline', '--all', `-${logLimit}`], {
+    cwd,
+    stdio: 'inherit',
+  });
 }
 
 async function runFilteredLog(cwd: string): Promise<void> {
@@ -52,7 +55,9 @@ async function runFilteredLog(cwd: string): Promise<void> {
   blank();
 
   const author = await inputPrompt('Autor (Enter para omitir)');
-  const since = await inputPrompt('Desde fecha (ej: "2024-01-01", "1 week ago", Enter para omitir)');
+  const since = await inputPrompt(
+    'Desde fecha (ej: "2024-01-01", "1 week ago", Enter para omitir)'
+  );
   const until = await inputPrompt('Hasta fecha (ej: "2024-12-31", Enter para omitir)');
   const path = await inputPrompt('Fichero/directorio (Enter para omitir)');
   const grep = await inputPrompt('Buscar en mensaje (Enter para omitir)');

@@ -72,7 +72,10 @@ export async function runRemoteSetup(cwd = process.cwd()): Promise<void> {
 async function createGitHubRepo(cwd: string): Promise<void> {
   const dirName = basename(cwd);
   const repoName = await inputPrompt('Repository name', dirName);
-  if (!repoName.trim()) { info('Cancelled.'); return; }
+  if (!repoName.trim()) {
+    info('Cancelled.');
+    return;
+  }
 
   const visibility = await selectPrompt('Visibility:', ['private', 'public']);
   const description = await inputPrompt('Description (optional, press Enter to skip)', '');
@@ -81,7 +84,9 @@ async function createGitHubRepo(cwd: string): Promise<void> {
   info(`Creating "${repoName}" on GitHub...`);
 
   const args = [
-    'repo', 'create', repoName.trim(),
+    'repo',
+    'create',
+    repoName.trim(),
     `--${visibility}`,
     '--source=.',
     '--remote=origin',
@@ -117,7 +122,10 @@ async function enterRemoteManually(cwd: string): Promise<void> {
   blank();
 
   const url = await inputPrompt('Remote URL (SSH or HTTPS)');
-  if (!url.trim()) { info('Skipped — no URL provided.'); return; }
+  if (!url.trim()) {
+    info('Skipped — no URL provided.');
+    return;
+  }
 
   const remoteName = await inputPrompt('Remote name', 'origin');
   const name = remoteName.trim() || 'origin';

@@ -33,7 +33,9 @@ export class OllamaProvider extends BaseProvider {
       const prompt = this.buildCommitPrompt(context);
       const response = await this.generate(prompt);
       if (response) return response.trim();
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generateCommitMessage(context);
   }
 
@@ -46,7 +48,9 @@ export class OllamaProvider extends BaseProvider {
         const parsed = parsePRJSON(response);
         if (parsed) return parsed;
       }
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
     return this.fallback.generatePRDescription(context);
   }
 
@@ -58,7 +62,7 @@ export class OllamaProvider extends BaseProvider {
       signal: AbortSignal.timeout(60000),
     });
     if (!res.ok) return null;
-    const data = await res.json() as { response?: string };
+    const data = (await res.json()) as { response?: string };
     return data.response ?? null;
   }
 }
@@ -69,6 +73,8 @@ function parsePRJSON(raw: string): PRProposal | null {
     if (!match) return null;
     const parsed = JSON.parse(match[0]) as { title?: string; body?: string };
     if (parsed.title && parsed.body) return { title: parsed.title, body: parsed.body };
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
   return null;
 }

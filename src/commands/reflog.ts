@@ -8,8 +8,8 @@ import { confirmPrompt, inputPrompt, selectPrompt } from '../ux/prompt.js';
 interface ReflogEntry {
   sha: string;
   shortSha: string;
-  refName: string;   // e.g. "HEAD@{0}"
-  action: string;    // e.g. "commit", "checkout", "reset", "merge", "rebase"
+  refName: string; // e.g. "HEAD@{0}"
+  action: string; // e.g. "commit", "checkout", "reset", "merge", "rebase"
   description: string;
   ago: string;
 }
@@ -17,11 +17,11 @@ interface ReflogEntry {
 // ── Git helpers ────────────────────────────────────────────────────────────
 
 function getReflog(limit: number, cwd: string): ReflogEntry[] {
-  const r = spawnSync('git', [
-    'reflog',
-    `--max-count=${limit}`,
-    '--format=%H\x1f%h\x1f%gd\x1f%gs\x1f%ar',
-  ], { cwd, encoding: 'utf-8' });
+  const r = spawnSync(
+    'git',
+    ['reflog', `--max-count=${limit}`, '--format=%H\x1f%h\x1f%gd\x1f%gs\x1f%ar'],
+    { cwd, encoding: 'utf-8' }
+  );
 
   if (r.status !== 0 || !r.stdout?.trim()) return [];
 
@@ -104,7 +104,9 @@ async function flowRecover(entries: ReflogEntry[], cwd: string): Promise<void> {
     if (r.status === 0) {
       success('Cherry-pick completado.');
     } else {
-      warning('Cherry-pick con conflictos. Resuelve los conflictos y ejecuta "git cherry-pick --continue".');
+      warning(
+        'Cherry-pick con conflictos. Resuelve los conflictos y ejecuta "git cherry-pick --continue".'
+      );
       warning('Para abortar: git cherry-pick --abort');
     }
   }
@@ -167,7 +169,7 @@ export async function runReflog(): Promise<void> {
       const idx = String(i).padStart(2, ' ');
       const sha = e.shortSha.padEnd(9, ' ');
       const ref = e.refName.padEnd(12, ' ');
-      const ago = (e.ago).padEnd(14, ' ');
+      const ago = e.ago.padEnd(14, ' ');
       console.log(`  ${idx}  ${sha}  ${ref}  ${ago}  ${e.description}`);
     });
     blank();

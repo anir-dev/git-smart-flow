@@ -9,7 +9,8 @@ export function detectProjectType(cwd: string): ProjectType {
     existsSync(join(cwd, 'requirements.txt')) ||
     existsSync(join(cwd, 'pyproject.toml')) ||
     existsSync(join(cwd, 'setup.py'))
-  ) return 'python';
+  )
+    return 'python';
   if (existsSync(join(cwd, 'pom.xml')) || existsSync(join(cwd, 'build.gradle'))) return 'java';
   if (existsSync(join(cwd, 'go.mod'))) return 'go';
   if (existsSync(join(cwd, 'Cargo.toml'))) return 'rust';
@@ -17,11 +18,11 @@ export function detectProjectType(cwd: string): ProjectType {
 }
 
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  node:    'Node.js / TypeScript / JavaScript',
-  python:  'Python',
-  java:    'Java / Kotlin (Maven / Gradle)',
-  go:      'Go',
-  rust:    'Rust',
+  node: 'Node.js / TypeScript / JavaScript',
+  python: 'Python',
+  java: 'Java / Kotlin (Maven / Gradle)',
+  go: 'Go',
+  rust: 'Rust',
   generic: 'Generic (editor files, env, logs)',
 };
 

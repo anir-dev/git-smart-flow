@@ -26,7 +26,9 @@ export abstract class BaseProvider implements AIProvider {
       `Changed files:\n${files}`,
       `Summary:\n${summary}`,
       `Output ONLY the commit message, nothing else.`,
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 
   protected buildPRPrompt(context: AIContext): string {
@@ -40,6 +42,8 @@ export abstract class BaseProvider implements AIProvider {
       `Changed files:\n${files}`,
       `Summary:\n${localSummary.join('\n')}`,
       `Output a JSON object with fields: title (string), body (markdown string with sections: Context, Changes, Testing, Risks/Impact).`,
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 }

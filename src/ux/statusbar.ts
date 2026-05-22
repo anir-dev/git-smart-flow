@@ -8,7 +8,9 @@ export function printStatusBar(cwd = process.cwd()): void {
   if (isCI() || !process.stdout.isTTY) return;
 
   const r = spawnSync('git', ['status', '--porcelain=v2', '--branch'], {
-    cwd, encoding: 'utf-8', stdio: 'pipe',
+    cwd,
+    encoding: 'utf-8',
+    stdio: 'pipe',
   });
 
   const repoName = chalk.bold.hex('#ff79c6')(basename(cwd));
@@ -19,12 +21,18 @@ export function printStatusBar(cwd = process.cwd()): void {
     return;
   }
 
-  let branch = 'HEAD', ahead = 0, behind = 0, modified = 0;
+  let branch = 'HEAD',
+    ahead = 0,
+    behind = 0,
+    modified = 0;
   for (const line of (r.stdout ?? '').split('\n')) {
     if (line.startsWith('# branch.head ')) branch = line.slice(14).trim();
     if (line.startsWith('# branch.ab ')) {
       const m = line.match(/\+(\d+) -(\d+)/);
-      if (m) { ahead = +(m[1] ?? 0); behind = +(m[2] ?? 0); }
+      if (m) {
+        ahead = +(m[1] ?? 0);
+        behind = +(m[2] ?? 0);
+      }
     }
     if (line.startsWith('1 ') || line.startsWith('2 ') || line.startsWith('? ')) modified++;
   }

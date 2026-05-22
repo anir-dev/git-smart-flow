@@ -3,11 +3,21 @@ import boxen from 'boxen';
 
 // ── Legacy helpers (backward-compatible with existing commands) ────────────
 
-export function success(msg: string): void { console.log(chalk.green('✔ ' + msg)); }
-export function error(msg: string): void { console.error(chalk.red('✖ ' + msg)); }
-export function warning(msg: string): void { console.warn(chalk.yellow('⚠ ' + msg)); }
-export function info(msg: string): void { console.log(chalk.blue('ℹ ' + msg)); }
-export function secondary(msg: string): void { console.log(chalk.gray(msg)); }
+export function success(msg: string): void {
+  console.log(chalk.green('✔ ' + msg));
+}
+export function error(msg: string): void {
+  console.error(chalk.red('✖ ' + msg));
+}
+export function warning(msg: string): void {
+  console.warn(chalk.yellow('⚠ ' + msg));
+}
+export function info(msg: string): void {
+  console.log(chalk.blue('ℹ ' + msg));
+}
+export function secondary(msg: string): void {
+  console.log(chalk.gray(msg));
+}
 
 export function section(title: string): void {
   console.log('\n' + chalk.bold.cyan('── ' + title + ' ──'));
@@ -25,7 +35,9 @@ export function table(rows: Array<[string, string]>): void {
   }
 }
 
-export function blank(): void { console.log(); }
+export function blank(): void {
+  console.log();
+}
 
 export function header(title: string, version: string): void {
   console.log(chalk.bold.cyan(`\n  Git Smart Flow ${chalk.white(`v${version}`)}\n`));
@@ -65,7 +77,12 @@ export function printItem(
   label: string,
   value?: string
 ): void {
-  const icons = { ok: chalk.green('✅'), warn: chalk.yellow('⚠️ '), error: chalk.red('❌'), info: chalk.blue('──') };
+  const icons = {
+    ok: chalk.green('✅'),
+    warn: chalk.yellow('⚠️ '),
+    error: chalk.red('❌'),
+    info: chalk.blue('──'),
+  };
   const icon = icons[status];
   const val = value ? '  ' + chalk.gray(value) : '';
   console.log(`  ${icon}  ${label}${val}`);

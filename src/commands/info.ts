@@ -144,13 +144,21 @@ async function runPlainInfo(cwd: string): Promise<void> {
     blank();
   }
 
-  const ghAvailableResult = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' });
+  const ghAvailableResult = spawnSync('gh', ['auth', 'status'], {
+    encoding: 'utf-8',
+    stdio: 'pipe',
+  });
   if (ghAvailableResult.status === 0) {
     blank();
     section('Pull Request');
     const prResult = spawnSync(
       'gh',
-      ['pr', 'view', '--json', 'number,title,state,url,baseRefName,statusCheckRollup,reviewDecision'],
+      [
+        'pr',
+        'view',
+        '--json',
+        'number,title,state,url,baseRefName,statusCheckRollup,reviewDecision',
+      ],
       { cwd, encoding: 'utf-8', stdio: 'pipe' }
     );
     if (prResult.status === 0 && prResult.stdout) {
@@ -169,24 +177,31 @@ async function runPlainInfo(cwd: string): Promise<void> {
         keyValue('URL', pr.url);
 
         const checks = pr.statusCheckRollup ?? [];
-        const passed = checks.filter(c => c.state === 'SUCCESS').length;
-        const failed = checks.filter(c => c.state === 'FAILURE' || c.state === 'ERROR').length;
-        const pending = checks.filter(c => c.state === 'PENDING' || c.state === 'IN_PROGRESS').length;
+        const passed = checks.filter((c) => c.state === 'SUCCESS').length;
+        const failed = checks.filter((c) => c.state === 'FAILURE' || c.state === 'ERROR').length;
+        const pending = checks.filter(
+          (c) => c.state === 'PENDING' || c.state === 'IN_PROGRESS'
+        ).length;
 
         if (checks.length > 0) {
-          const checkStatus = failed > 0
-            ? `❌ ${failed} fallando`
-            : pending > 0
-              ? `⏳ ${pending} en progreso`
-              : `✅ ${passed}/${checks.length} pasados`;
+          const checkStatus =
+            failed > 0
+              ? `❌ ${failed} fallando`
+              : pending > 0
+                ? `⏳ ${pending} en progreso`
+                : `✅ ${passed}/${checks.length} pasados`;
           keyValue('CI Checks', checkStatus);
         }
 
         if (pr.reviewDecision) {
-          const reviewStatus = pr.reviewDecision === 'APPROVED' ? '✅ Aprobado'
-            : pr.reviewDecision === 'CHANGES_REQUESTED' ? '🔄 Cambios requeridos'
-            : pr.reviewDecision === 'REVIEW_REQUIRED' ? '🔍 Review pendiente'
-            : pr.reviewDecision;
+          const reviewStatus =
+            pr.reviewDecision === 'APPROVED'
+              ? '✅ Aprobado'
+              : pr.reviewDecision === 'CHANGES_REQUESTED'
+                ? '🔄 Cambios requeridos'
+                : pr.reviewDecision === 'REVIEW_REQUIRED'
+                  ? '🔍 Review pendiente'
+                  : pr.reviewDecision;
           keyValue('Review', reviewStatus);
         }
       } catch {

@@ -100,12 +100,18 @@ export async function runMerge(opts: RunOptions = {}): Promise<void> {
   }
 
   if (strategy.startsWith('Squash')) {
-    const squashResult = spawnSync('git', ['merge', '--squash', sourceBranch], { cwd, stdio: 'inherit' });
+    const squashResult = spawnSync('git', ['merge', '--squash', sourceBranch], {
+      cwd,
+      stdio: 'inherit',
+    });
     if (squashResult.status === 0) {
       info('Cambios staged. Escribe el mensaje del commit de squash:');
       const { guidedMessageBuilder } = await import('./commit.js');
       const msg = await guidedMessageBuilder();
-      if (!msg) { info('Merge squash cancelado.'); return; }
+      if (!msg) {
+        info('Merge squash cancelado.');
+        return;
+      }
       spawnSync('git', ['commit', '-m', msg], { cwd, stdio: 'inherit' });
       success(`Squash merge de "${sourceBranch}" completado.`);
     }

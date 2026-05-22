@@ -14,9 +14,10 @@ export function buildAIContext(params: {
 
   const changedFiles = stagedFiles.map((f) => ({ path: f.path, status: f.status }));
   const localSummary = buildLocalSummary(stagedFiles);
-  const sanitizedFragments = allowRawDiff && diff
-    ? buildRawFragments(stagedFiles, diff)
-    : buildHeuristicFragments(stagedFiles);
+  const sanitizedFragments =
+    allowRawDiff && diff
+      ? buildRawFragments(stagedFiles, diff)
+      : buildHeuristicFragments(stagedFiles);
 
   return {
     repository: repoName,
@@ -33,10 +34,14 @@ function buildLocalSummary(files: StagedFile[]): string[] {
   const summary: string[] = [];
   const byStatus = groupByStatus(files);
 
-  if (byStatus['added']?.length) summary.push(`Added: ${byStatus['added'].map((f) => f.path).join(', ')}`);
-  if (byStatus['modified']?.length) summary.push(`Modified: ${byStatus['modified'].map((f) => f.path).join(', ')}`);
-  if (byStatus['deleted']?.length) summary.push(`Deleted: ${byStatus['deleted'].map((f) => f.path).join(', ')}`);
-  if (byStatus['renamed']?.length) summary.push(`Renamed: ${byStatus['renamed'].map((f) => f.path).join(', ')}`);
+  if (byStatus['added']?.length)
+    summary.push(`Added: ${byStatus['added'].map((f) => f.path).join(', ')}`);
+  if (byStatus['modified']?.length)
+    summary.push(`Modified: ${byStatus['modified'].map((f) => f.path).join(', ')}`);
+  if (byStatus['deleted']?.length)
+    summary.push(`Deleted: ${byStatus['deleted'].map((f) => f.path).join(', ')}`);
+  if (byStatus['renamed']?.length)
+    summary.push(`Renamed: ${byStatus['renamed'].map((f) => f.path).join(', ')}`);
 
   return summary;
 }
@@ -64,26 +69,26 @@ function heuristicSummary(file: StagedFile): string {
   const name = basename(path, extname(path));
 
   const dirHints: Record<string, string> = {
-    'test': 'test file',
-    'tests': 'test file',
-    '__tests__': 'test file',
-    'spec': 'test file',
-    'docs': 'documentation',
-    'doc': 'documentation',
-    'ci': 'CI configuration',
+    test: 'test file',
+    tests: 'test file',
+    __tests__: 'test file',
+    spec: 'test file',
+    docs: 'documentation',
+    doc: 'documentation',
+    ci: 'CI configuration',
     '.github': 'GitHub configuration',
     '.husky': 'Git hooks',
-    'scripts': 'build/release script',
-    'migrations': 'database migration',
-    'config': 'configuration',
-    'types': 'type definitions',
-    'interfaces': 'interface definitions',
-    'models': 'data model',
-    'controllers': 'controller',
-    'routes': 'route definition',
-    'services': 'service module',
-    'utils': 'utility function',
-    'helpers': 'helper function',
+    scripts: 'build/release script',
+    migrations: 'database migration',
+    config: 'configuration',
+    types: 'type definitions',
+    interfaces: 'interface definitions',
+    models: 'data model',
+    controllers: 'controller',
+    routes: 'route definition',
+    services: 'service module',
+    utils: 'utility function',
+    helpers: 'helper function',
   };
 
   const parts = path.split('/');
@@ -93,19 +98,19 @@ function heuristicSummary(file: StagedFile): string {
   }
 
   const extHints: Record<string, string> = {
-    'md': 'documentation file',
-    'yml': 'configuration file',
-    'yaml': 'configuration file',
-    'json': 'configuration/data file',
-    'ts': 'TypeScript module',
-    'js': 'JavaScript module',
-    'tsx': 'React component',
-    'jsx': 'React component',
-    'css': 'stylesheet',
-    'scss': 'stylesheet',
-    'sql': 'database script',
-    'sh': 'shell script',
-    'ps1': 'PowerShell script',
+    md: 'documentation file',
+    yml: 'configuration file',
+    yaml: 'configuration file',
+    json: 'configuration/data file',
+    ts: 'TypeScript module',
+    js: 'JavaScript module',
+    tsx: 'React component',
+    jsx: 'React component',
+    css: 'stylesheet',
+    scss: 'stylesheet',
+    sql: 'database script',
+    sh: 'shell script',
+    ps1: 'PowerShell script',
   };
 
   const extHint = extHints[ext] ?? 'file';
@@ -114,13 +119,9 @@ function heuristicSummary(file: StagedFile): string {
 
 function extractFileDiff(diff: string, filePath: string): string {
   const lines = diff.split('\n');
-  const startIdx = lines.findIndex(
-    (l) => l.startsWith('diff --git') && l.includes(filePath)
-  );
+  const startIdx = lines.findIndex((l) => l.startsWith('diff --git') && l.includes(filePath));
   if (startIdx === -1) return '';
-  const endIdx = lines.findIndex(
-    (l, i) => i > startIdx && l.startsWith('diff --git')
-  );
+  const endIdx = lines.findIndex((l, i) => i > startIdx && l.startsWith('diff --git'));
   const chunk = endIdx === -1 ? lines.slice(startIdx) : lines.slice(startIdx, endIdx);
   return chunk.slice(0, 50).join('\n');
 }

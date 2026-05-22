@@ -201,13 +201,33 @@ program
   });
 
 // ── Status bar — printed before every command action ──────────────────────
-program.hook('preAction', () => { printStatusBar(); });
+program.hook('preAction', () => {
+  printStatusBar();
+});
 
 // ── Git passthrough — unknown commands delegate to git ─────────────────────
 const GSF_COMMANDS = new Set([
-  'setup', 'menu', 'branch', 'commit', 'commit-message', 'pr', 'validate', 'push',
-  'merge', 'doctor', 'config', 'aliases', 'install-hooks', 'repo-init', 'sync',
-  'revert', 'info', 'log', 'stash', 'tag', 'reflog',
+  'setup',
+  'menu',
+  'branch',
+  'commit',
+  'commit-message',
+  'pr',
+  'validate',
+  'push',
+  'merge',
+  'doctor',
+  'config',
+  'aliases',
+  'install-hooks',
+  'repo-init',
+  'sync',
+  'revert',
+  'info',
+  'log',
+  'stash',
+  'tag',
+  'reflog',
 ]);
 
 const _passthroughArg = process.argv[2];
