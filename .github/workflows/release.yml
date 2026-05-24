@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm-publish # optional: add a GitHub environment with protection rules
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true # binaries are bonus; don't fail the release
 
       - name: Upload binaries to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: downloads/*
         env:
