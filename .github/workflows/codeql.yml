@@ -33,7 +33,7 @@ jobs:
           # Use the default queries plus the security-extended suite for deeper coverage.
           queries: security-extended
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
