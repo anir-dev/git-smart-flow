@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../theme.js';
 

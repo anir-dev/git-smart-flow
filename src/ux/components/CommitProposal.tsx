@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type JSX } from 'react';
 import { Box, Text } from 'ink';
 import { Select, TextInput } from '@inkjs/ui';
 import type { CommitProposal, ValidationResult } from '../../types/index.js';

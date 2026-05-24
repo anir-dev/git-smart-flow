@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Box, Text } from 'ink';
 import { Select } from '@inkjs/ui';
 import type { SecurityScanResult } from '../../types/index.js';

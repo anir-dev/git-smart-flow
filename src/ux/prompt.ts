@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { createInterface } from 'readline';
 import { isCI } from './renderer.js';
 

@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { spawnSync } from 'child_process';

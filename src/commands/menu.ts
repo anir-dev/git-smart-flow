@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

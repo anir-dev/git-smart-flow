@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { spawnSync } from 'child_process';
 import { ensureGitRepo } from '../git/ensure-repo.js';
 import { getConfig } from '../config/config.js';
