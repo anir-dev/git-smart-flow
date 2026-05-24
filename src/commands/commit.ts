@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { execSync, spawnSync } from 'child_process';
 import { getConfig } from '../config/config.js';
 import { buildAIContext } from '../git/ai-context-builder.js';

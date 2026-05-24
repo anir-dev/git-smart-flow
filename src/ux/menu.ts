@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { isCI } from './renderer.js';
 
 export interface MenuItem {

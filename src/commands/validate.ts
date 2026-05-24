@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { getConfig } from '../config/config.js';
 import { detectConvention } from '../git/convention-detector.js';
 import { ensureGitRepo } from '../git/ensure-repo.js';

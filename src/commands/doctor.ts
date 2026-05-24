@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { spawnSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';

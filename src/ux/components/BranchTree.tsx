@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 import { Box, Text } from 'ink';
 import { spawnSync } from 'child_process';
 import { branchColor, theme } from '../theme.js';

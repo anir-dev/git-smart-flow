@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Box, Text } from 'ink';
 import type { RepoContext } from '../../types/index.js';
 import { branchColor, theme } from '../theme.js';
