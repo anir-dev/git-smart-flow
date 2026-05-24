@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm-publish # optional: add a GitHub environment with protection rules
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
