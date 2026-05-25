@@ -330,10 +330,16 @@ async function runInkCommit(): Promise<void> {
     if (state.phase === 'file-select') {
       const unstaged = getUnstagedFiles(cwd);
       const untracked = getUntrackedFiles(cwd);
+      // Staged files take priority; exclude from unstaged/untracked to avoid duplicate values
+      const stagedPaths = new Set(state.staged.map((f) => f.path));
       const allFiles = [
         ...state.staged.map((f) => ({ path: f.path, status: f.status as 'added' })),
-        ...unstaged.map((p) => ({ path: p, status: 'unstaged' as const })),
-        ...untracked.map((p) => ({ path: p, status: 'untracked' as const })),
+        ...unstaged
+          .filter((p) => !stagedPaths.has(p))
+          .map((p) => ({ path: p, status: 'unstaged' as const })),
+        ...untracked
+          .filter((p) => !stagedPaths.has(p))
+          .map((p) => ({ path: p, status: 'untracked' as const })),
       ];
 
       if (allFiles.length === 0) {
@@ -549,9 +555,7 @@ async function runInkCommit(): Promise<void> {
     }
   }
 
-  await renderInteractive<void>(
-    (resolve) => React.createElement(CommitFlow, { onDone: resolve }) as JSX.Element
-  );
+  await renderInteractive<void>((resolve) => React.createElement(CommitFlow, { onDone: resolve }));
 }
 
 // ── Plain commit flow (CI / no-TTY) ───────────────────────────────────────

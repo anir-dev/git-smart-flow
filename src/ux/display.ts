@@ -1,37 +1,46 @@
 import chalk from 'chalk';
 import boxen from 'boxen';
+import { theme } from './theme.js';
 
 // ── Legacy helpers (backward-compatible with existing commands) ────────────
 
 export function success(msg: string): void {
-  console.log(chalk.green('✔ ' + msg));
+  console.log(chalk.green('✓ ') + msg);
 }
 export function error(msg: string): void {
-  console.error(chalk.red('✖ ' + msg));
+  console.error(chalk.red('✕ ') + msg);
 }
 export function warning(msg: string): void {
-  console.warn(chalk.yellow('⚠ ' + msg));
+  console.warn(chalk.yellow('⚠ ') + msg);
 }
 export function info(msg: string): void {
-  console.log(chalk.blue('ℹ ' + msg));
+  console.log(chalk.dim('- ') + msg);
 }
 export function secondary(msg: string): void {
   console.log(chalk.gray(msg));
 }
 
 export function section(title: string): void {
-  console.log('\n' + chalk.bold.cyan('── ' + title + ' ──'));
+  const width = Math.min(process.stdout.columns ?? 80, 120);
+  const line = '─'.repeat(Math.max(0, width - title.length - 4));
+  console.log(
+    '\n' +
+      chalk.bold.hex(theme.accent)('◆ ') +
+      chalk.bold(title) +
+      '  ' +
+      chalk.hex(theme.border)(line)
+  );
 }
 
 export function keyValue(key: string, value: string, indent = 0): void {
   const pad = ' '.repeat(indent);
-  console.log(`${pad}${chalk.gray(key + ':')} ${chalk.white(value)}`);
+  console.log(`${pad}${chalk.dim(key.padEnd(14))}  ${chalk.hex(theme.answer)(value)}`);
 }
 
 export function table(rows: Array<[string, string]>): void {
   const maxKey = Math.max(...rows.map(([k]) => k.length));
   for (const [k, v] of rows) {
-    console.log(`  ${chalk.gray(k.padEnd(maxKey))}  ${chalk.white(v)}`);
+    console.log(`  ${chalk.dim(k.padEnd(maxKey))}  ${chalk.hex(theme.answer)(v)}`);
   }
 }
 
@@ -40,22 +49,29 @@ export function blank(): void {
 }
 
 export function header(title: string, version: string): void {
-  console.log(chalk.bold.cyan(`\n  Git Smart Flow ${chalk.white(`v${version}`)}\n`));
-  if (title) console.log(chalk.gray(`  ${title}\n`));
+  console.log(
+    '\n  ' +
+      chalk.bold.hex(theme.accent)('◆ ') +
+      chalk.bold.white('Git Smart Flow  ') +
+      chalk.dim(`v${version}`) +
+      '\n'
+  );
+  if (title) console.log(chalk.dim(`  ${title}\n`));
 }
 
 export function divider(): void {
-  console.log(chalk.gray('─'.repeat(50)));
+  const width = Math.min(process.stdout.columns ?? 80, 120);
+  console.log(chalk.hex(theme.border)('─'.repeat(width)));
 }
 
 // ── New semantic helpers (for CI/pipe-safe output) ─────────────────────────
 
 export function printSuccess(msg: string): void {
-  console.log(chalk.green('✔') + ' ' + msg);
+  console.log(chalk.green('✓') + ' ' + msg);
 }
 
 export function printError(msg: string): void {
-  console.error(chalk.red('✖') + ' ' + msg);
+  console.error(chalk.red('✕') + ' ' + msg);
 }
 
 export function printWarning(msg: string): void {
@@ -63,13 +79,19 @@ export function printWarning(msg: string): void {
 }
 
 export function printInfo(msg: string): void {
-  console.log(chalk.blue('ℹ') + ' ' + msg);
+  console.log(chalk.dim('-') + ' ' + msg);
 }
 
 export function printSection(title: string): void {
-  const width = Math.min(process.stdout.columns ?? 80, 80);
+  const width = Math.min(process.stdout.columns ?? 80, 120);
   const line = '─'.repeat(Math.max(0, width - title.length - 4));
-  console.log('\n' + chalk.bold(title) + '  ' + chalk.gray(line));
+  console.log(
+    '\n' +
+      chalk.bold.hex(theme.accent)('◆ ') +
+      chalk.bold(title) +
+      '  ' +
+      chalk.hex(theme.border)(line)
+  );
 }
 
 export function printItem(

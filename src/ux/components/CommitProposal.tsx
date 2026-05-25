@@ -126,8 +126,10 @@ export function CommitProposalView({
   const typeColor = commitTypeColor(parsedType);
   const validations = buildValidations(proposal.message, proposal.validation, 100);
 
-  // Put the current/inferred type first so pressing Enter immediately accepts it
+  // Put the current/inferred type first so pressing Enter immediately accepts it.
+  // First option is always "← Volver" so the user can escape this sub-menu.
   const typeOptions = [
+    { value: '__back__', label: '← Volver al menú de propuesta' },
     { value: guidedType, label: `${guidedType.padEnd(10)} ← actual` },
     ...COMMIT_TYPES.filter((t) => t.value !== guidedType),
   ];
@@ -152,11 +154,15 @@ export function CommitProposalView({
           isDisabled={!stepActive}
           options={typeOptions}
           onChange={(val) => {
+            if (val === '__back__') {
+              setMode('menu');
+              return;
+            }
             setGuidedType(val);
             setMode('guided-scope');
           }}
         />
-        <Text color={theme.muted}> ↑↓ navegar Enter seleccionar</Text>
+        <Text color={theme.muted}> ↑↓ navegar · Enter seleccionar · Ctrl+C cancelar</Text>
       </Box>
     );
   }
@@ -177,6 +183,7 @@ export function CommitProposalView({
             setMode('guided-desc');
           }}
         />
+        <Text color={theme.muted}> Enter confirmar · Ctrl+C cancelar</Text>
       </Box>
     );
   }
@@ -194,13 +201,16 @@ export function CommitProposalView({
           placeholder="add user authentication"
           onSubmit={(val) => {
             const desc = val.trim();
-            if (!desc) return;
+            if (!desc) {
+              setMode('guided-scope');
+              return;
+            }
             const newMsg = `${guidedType}${guidedScope.trim() ? `(${guidedScope.trim()})` : ''}: ${desc}`;
             setMode('menu');
             onAction('edit', newMsg);
           }}
         />
-        <Text color={theme.muted}> Enter para confirmar</Text>
+        <Text color={theme.muted}> Enter confirmar · vacío para volver · Ctrl+C cancelar</Text>
       </Box>
     );
   }
@@ -217,15 +227,16 @@ export function CommitProposalView({
           defaultValue={regenHint}
           placeholder="ej: hazlo más corto, añade más contexto..."
           onSubmit={(val) => {
+            if (!val.trim()) {
+              setMode('menu');
+              return;
+            }
             setRegenHint(val);
             setMode('menu');
             onAction('regenerate', val);
           }}
         />
-        <Text color={theme.muted}>
-          {' '}
-          Enter para confirmar · vacío para regenerar sin instrucción
-        </Text>
+        <Text color={theme.muted}> Enter confirmar · vacío = cancelar · Ctrl+C cancelar</Text>
       </Box>
     );
   }
@@ -306,6 +317,7 @@ export function CommitProposalView({
           onAction(val as CommitAction);
         }}
       />
+      <Text color={theme.muted}> ↑↓ navegar · Enter seleccionar · Ctrl+C cancelar</Text>
     </Box>
   );
 }

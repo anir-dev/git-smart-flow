@@ -34,6 +34,9 @@ export const theme = {
   borderFocus: '#3b82f6',
   headerBg: '#1f2937',
   accent: '#6366f1',
+
+  prompt: '#22d3ee',
+  answer: '#67e8f9',
 } as const;
 
 export function branchColor(branch: string): string {

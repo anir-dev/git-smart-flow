@@ -13,11 +13,12 @@ export function printStatusBar(cwd = process.cwd()): void {
     stdio: 'pipe',
   });
 
+  const diamond = chalk.bold.hex(theme.accent)('◆');
   const repoName = chalk.bold.hex('#ff79c6')(basename(cwd));
-  const width = Math.min(process.stdout.columns ?? 80, 100);
+  const width = Math.min(process.stdout.columns ?? 80, 120);
 
   if (r.status !== 0) {
-    process.stdout.write(`📁 ${repoName}\n`);
+    process.stdout.write(`${diamond}  ${repoName}\n`);
     return;
   }
 
@@ -40,10 +41,10 @@ export function printStatusBar(cwd = process.cwd()): void {
   const branchPart = chalk.hex(branchColor(branch))(`(${branch})`);
   const modPart = modified > 0 ? chalk.yellow(`±${modified}`) : chalk.dim('✓');
 
-  const parts: string[] = [repoName, branchPart, modPart];
+  const parts: string[] = [diamond, repoName, branchPart, modPart];
   if (ahead > 0) parts.push(chalk.hex(theme.success)(`↑${ahead}`));
   if (behind > 0) parts.push(chalk.hex(theme.error)(`↓${behind}`));
 
   process.stdout.write(parts.join('  ') + '\n');
-  process.stdout.write(chalk.dim('─'.repeat(width)) + '\n');
+  process.stdout.write(chalk.hex(theme.border)('─'.repeat(width)) + '\n');
 }
