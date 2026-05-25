@@ -49,22 +49,70 @@ function requireGh(): boolean {
   return false;
 }
 
+function getRemoteBranches(cwd: string): string[] {
+  const result = spawnSync('git', ['branch', '-r', '--format=%(refname:short)'], {
+    encoding: 'utf-8',
+    stdio: 'pipe',
+    cwd,
+  });
+  return result.stdout
+    .split('\n')
+    .map((b) => b.trim().replace(/^origin\//, ''))
+    .filter((b) => b && b !== 'HEAD');
+}
+
 // ── New GitHub-integrated operations ───────────────────────────────────────
 
-async function runCreatePROnGitHub(title: string, body: string): Promise<void> {
+async function runCreatePROnGitHub(titleArg: string, bodyArg: string): Promise<void> {
   if (!requireGh()) return;
 
   const config = getConfig();
   const cwd = process.cwd();
-  const defaultBase = config.git.defaultBaseBranches[0] ?? 'main';
 
-  const basePick = await selectPrompt(`Rama base (actual: ${defaultBase}):`, [
-    ...config.git.defaultBaseBranches,
-    'Ingresar manualmente',
-  ]);
+  let title = titleArg;
+  let body = bodyArg;
+
+  if (!title) {
+    const branch = getCurrentBranch(cwd);
+    const repoName = getRepoName(cwd);
+    const convention = await detectConvention(cwd);
+    const ticket = extractTicketFromBranch(branch, config.commit.ticketPattern);
+    const staged = getStagedFiles(cwd);
+    const aiContext = buildAIContext({
+      repoName,
+      branch,
+      ticket,
+      convention,
+      stagedFiles: staged,
+      allowRawDiff: config.ai.allowRawDiff,
+    });
+
+    startSpinner('Generando título y descripción con IA...');
+    try {
+      const provider = await createProviderWithFallback(config);
+      const proposal = await provider.generatePRDescription(aiContext);
+      succeedSpinner('Descripción generada');
+      title = proposal.title;
+      body = proposal.body;
+    } catch {
+      failSpinner('No se pudo generar con IA');
+    }
+  }
+
+  const remoteBranches = getRemoteBranches(cwd);
+  const preferredOrder = [...config.git.defaultBaseBranches, 'main'];
+  const defaultBase =
+    preferredOrder.find((b) => remoteBranches.includes(b)) ?? remoteBranches[0] ?? 'main';
+
+  const branchOptions =
+    remoteBranches.length > 0
+      ? [...remoteBranches, 'Ingresar manualmente']
+      : ['Ingresar manualmente'];
+
+  const basePick = await selectPrompt(`Rama destino (PR irá hacia ${defaultBase}):`, branchOptions);
   let base: string;
   if (basePick === 'Ingresar manualmente') {
-    base = await inputPrompt('Rama base', defaultBase);
+    base = await inputPrompt('Rama destino', defaultBase);
   } else {
     base = basePick;
   }
