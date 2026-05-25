@@ -185,6 +185,7 @@ async function listBranchesFlow(cwd: string): Promise<void> {
     console.log(`  ${b.current ? '▶' : ' '} ${b.name}${suffix}`);
   }
   blank();
+  await confirmPrompt('Pulsa Enter para continuar', true);
 }
 
 // ── Delete ─────────────────────────────────────────────────────────────────

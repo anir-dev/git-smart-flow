@@ -311,6 +311,13 @@ async function runInkCommit(): Promise<void> {
       }
     }, [state.phase]);
 
+    // Auto-exit after showing success or error so the process doesn't hang
+    useEffect(() => {
+      if (state.phase !== 'success' && state.phase !== 'error') return;
+      const t = setTimeout(finish, 2000);
+      return () => clearTimeout(t);
+    }, [state.phase]);
+
     if (state.phase === 'check-protected') {
       return React.createElement(
         Box,
