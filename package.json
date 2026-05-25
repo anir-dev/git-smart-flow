@@ -1,6 +1,6 @@
 {
   "name": "git-smart-flow",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Interactive CLI to manage Git workflows guided, safe and smart",
   "type": "module",
   "keywords": [
