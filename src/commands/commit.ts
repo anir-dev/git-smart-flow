@@ -194,7 +194,7 @@ async function amendFlow(cwd: string): Promise<void> {
 async function runInkCommit(): Promise<void> {
   const React = (await import('react')).default;
   const { useState, useEffect } = await import('react');
-  const { Box, Text, useApp } = await import('ink');
+  const { Box, Text, useApp, useInput } = await import('ink');
   const { Spinner } = await import('@inkjs/ui');
   const { renderInteractive } = await import('../ux/renderer.js');
   const { CommitProposalView } = await import('../ux/components/CommitProposal.js');
@@ -311,12 +311,10 @@ async function runInkCommit(): Promise<void> {
       }
     }, [state.phase]);
 
-    // Auto-exit after showing success or error so the process doesn't hang
-    useEffect(() => {
+    useInput((_input, key) => {
       if (state.phase !== 'success' && state.phase !== 'error') return;
-      const t = setTimeout(finish, 2000);
-      return () => clearTimeout(t);
-    }, [state.phase]);
+      if (key.return || key.escape || _input === 'q') onDone();
+    });
 
     if (state.phase === 'check-protected') {
       return React.createElement(
@@ -496,12 +494,13 @@ async function runInkCommit(): Promise<void> {
         }),
         React.createElement(
           Box,
-          { marginTop: 1 },
+          { marginTop: 1, flexDirection: 'column' },
           React.createElement(
             Text,
             { color: theme.muted },
             `  Ejecuta  gsf push  cuando estés listo.`
-          )
+          ),
+          React.createElement(Text, { color: theme.muted }, `  Pulsa Enter para continuar`)
         )
       );
     }
@@ -509,8 +508,13 @@ async function runInkCommit(): Promise<void> {
     if (state.phase === 'error') {
       return React.createElement(
         Box,
-        { paddingX: 1 },
-        React.createElement(ErrorBox, { title: 'Error al commitear', messages: state.errorMsg })
+        { paddingX: 1, flexDirection: 'column' },
+        React.createElement(ErrorBox, { title: 'Error al commitear', messages: state.errorMsg }),
+        React.createElement(
+          Box,
+          { marginTop: 1 },
+          React.createElement(Text, { color: theme.muted }, `  Pulsa Enter para continuar`)
+        )
       );
     }
 
