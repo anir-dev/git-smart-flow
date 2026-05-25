@@ -740,9 +740,7 @@ async function runInkPR(): Promise<void> {
     );
   }
 
-  await renderInteractive<void>(
-    (resolve) => React.createElement(PRFlow, { onDone: resolve }) as JSX.Element
-  );
+  await renderInteractive<void>((resolve) => React.createElement(PRFlow, { onDone: resolve }));
 
   if (postAction.create) {
     await runCreatePROnGitHub(postAction.title, postAction.body);

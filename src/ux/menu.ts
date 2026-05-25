@@ -40,7 +40,7 @@ async function inkShowMenu(title: string, items: MenuItem[]): Promise<void> {
         React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar')
       );
     }
-    return React.createElement(MenuUI, null) as JSX.Element;
+    return React.createElement(MenuUI, null);
   });
 
   const selected = items.find((i) => i.key === selectedKey);
