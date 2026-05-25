@@ -104,7 +104,11 @@ export async function selectPrompt(message: string, choices: string[]): Promise<
         React.createElement(Text, { bold: true, color: theme.muted }, message),
         React.createElement(Text),
         React.createElement(Select, { isDisabled: !active, options, onChange: resolve }),
-        React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar')
+        React.createElement(
+          Text,
+          { color: theme.muted },
+          '  ↑↓ navegar · Enter seleccionar · Ctrl+C cancelar'
+        )
       );
     }
     return React.createElement(SelectPrompt, null);
@@ -127,14 +131,19 @@ export async function confirmPrompt(message: string, defaultYes = true): Promise
       }, []);
       return React.createElement(
         Box,
-        { flexDirection: 'row', paddingX: 1 },
-        React.createElement(Text, { color: theme.muted }, message + '  '),
-        React.createElement(ConfirmInput, {
-          isDisabled: !active,
-          defaultChoice: defaultYes ? 'confirm' : 'cancel',
-          onConfirm: () => resolve(true),
-          onCancel: () => resolve(false),
-        })
+        { flexDirection: 'column', paddingX: 1 },
+        React.createElement(
+          Box,
+          { flexDirection: 'row' },
+          React.createElement(Text, { color: theme.muted }, message + '  '),
+          React.createElement(ConfirmInput, {
+            isDisabled: !active,
+            defaultChoice: defaultYes ? 'confirm' : 'cancel',
+            onConfirm: () => resolve(true),
+            onCancel: () => resolve(false),
+          })
+        ),
+        React.createElement(Text, { color: theme.muted }, '  Y/N · Ctrl+C cancelar')
       );
     }
     return React.createElement(ConfirmPrompt, null);
@@ -168,7 +177,8 @@ export async function inputPrompt(message: string, defaultValue?: string): Promi
           defaultValue: defaultValue ?? '',
           placeholder: defaultValue ?? '',
           onSubmit: (val: string) => resolve(val || defaultValue || ''),
-        })
+        }),
+        React.createElement(Text, { color: theme.muted }, '  Enter confirmar · Ctrl+C cancelar')
       );
     }
     return React.createElement(InputPrompt, null);
@@ -197,7 +207,8 @@ export async function passwordPrompt(message: string): Promise<string> {
           isDisabled: !active,
           placeholder: '••••••••',
           onSubmit: (val: string) => resolve(val),
-        })
+        }),
+        React.createElement(Text, { color: theme.muted }, '  Enter confirmar · Ctrl+C cancelar')
       );
     }
     return React.createElement(PasswordPrompt, null);
@@ -223,7 +234,11 @@ export async function multiselectPrompt(message: string, choices: string[]): Pro
         Box,
         { flexDirection: 'column', paddingX: 1 },
         React.createElement(Text, { bold: true, color: theme.muted }, message),
-        React.createElement(Text, { color: theme.muted }, '  Space seleccionar · Enter confirmar'),
+        React.createElement(
+          Text,
+          { color: theme.muted },
+          '  Space seleccionar · Enter confirmar · Ctrl+C cancelar'
+        ),
         React.createElement(MultiSelect, {
           isDisabled: !active,
           options,
@@ -275,7 +290,11 @@ export async function smartFileSelectPrompt(message: string, files: string[]): P
           { bold: true, color: theme.muted },
           `${message}  [${files.length} file(s)]`
         ),
-        React.createElement(Text, { color: theme.muted }, '  Space seleccionar · Enter confirmar'),
+        React.createElement(
+          Text,
+          { color: theme.muted },
+          '  Space seleccionar · Enter confirmar · Ctrl+C cancelar'
+        ),
         React.createElement(MultiSelect, {
           isDisabled: !active,
           options,

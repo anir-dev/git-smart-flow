@@ -100,7 +100,6 @@ export function FileSelector({ files, blockedFiles = [], onSelect }: Props): JSX
 
   function handleSubmit(selected: string[]): void {
     const paths = expandSelection(selected, selectableFiles);
-    if (paths.length === 0) return;
     onSelect(paths);
   }
 
@@ -124,7 +123,10 @@ export function FileSelector({ files, blockedFiles = [], onSelect }: Props): JSX
 
       <MultiSelect isDisabled={!isActive} options={options} onSubmit={handleSubmit} />
 
-      <Text color={theme.muted}> Espacio para seleccionar · Enter para confirmar</Text>
+      <Text color={theme.muted}>
+        {' '}
+        Espacio para seleccionar · Enter para confirmar · Ctrl+C para cancelar
+      </Text>
     </Box>
   );
 }

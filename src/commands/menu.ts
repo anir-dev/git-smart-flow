@@ -1,4 +1,3 @@
-import type { JSX } from 'react';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -116,10 +115,7 @@ async function printStatus(cwd: string): Promise<void> {
 async function runInkMenu(pkg: { version: string }): Promise<void> {
   const { renderInteractive } = await import('../ux/renderer.js');
   const React = (await import('react')).default;
-  const { useState, useEffect } = await import('react');
-  const { Select } = await import('@inkjs/ui');
-  const { Box, Text } = await import('ink');
-  const { theme } = await import('../ux/theme.js');
+  const { GsfShell } = await import('../ux/components/GsfShell.js');
   const { StatusDashboard } = await import('../ux/components/StatusDashboard.js');
 
   const cwd = process.cwd();
@@ -133,6 +129,16 @@ async function runInkMenu(pkg: { version: string }): Promise<void> {
   );
   const lastCommit = getLastCommit(cwd);
   const lastFetch = getLastFetchTime(cwd);
+
+  const dashboardElement = React.createElement(StatusDashboard, {
+    ctx,
+    lastCommit,
+    lastFetch,
+    version: pkg.version,
+    provider: config.ai.provider,
+    cwd,
+    graphLimit: 3,
+  });
 
   const options = [
     { label: '📌  Branch manager (create, switch, delete…)', value: '1' },
@@ -152,43 +158,14 @@ async function runInkMenu(pkg: { version: string }): Promise<void> {
     { label: '❌  Salir', value: '0' },
   ];
 
-  function MenuApp({ onSelect }: { onSelect: (val: string) => void }): JSX.Element {
-    const [active, setActive] = useState(false);
-    useEffect(() => {
-      const t = setTimeout(() => setActive(true), 120);
-      return () => clearTimeout(t);
-    }, []);
-    return React.createElement(
-      Box,
-      { flexDirection: 'column', paddingX: 1 },
-      React.createElement(StatusDashboard, {
-        ctx,
-        lastCommit,
-        lastFetch,
-        version: pkg.version,
-        provider: config.ai.provider,
-        cwd,
-        graphLimit: 3,
-      }),
-      React.createElement(
-        Box,
-        {
-          flexDirection: 'column',
-          borderStyle: 'round',
-          borderColor: theme.border,
-          paddingX: 1,
-          marginBottom: 1,
-        },
-        React.createElement(Text, { bold: true, color: theme.muted }, '¿Qué quieres hacer?'),
-        React.createElement(Text, { color: theme.muted }, ''),
-        React.createElement(Select, { isDisabled: !active, options, onChange: onSelect })
-      ),
-      React.createElement(Text, { color: theme.muted }, '  ↑↓ navegar   Enter seleccionar')
-    );
-  }
-
-  const choice = await renderInteractive<string>(
-    (resolve) => React.createElement(MenuApp, { onSelect: resolve }) as JSX.Element
+  const choice = await renderInteractive<string>((resolve) =>
+    React.createElement(GsfShell, {
+      version: pkg.version,
+      options,
+      onSelect: resolve,
+      cwd,
+      dashboardElement,
+    })
   );
 
   await handleChoice(choice);
@@ -331,8 +308,14 @@ export async function runMenu(): Promise<void> {
     return;
   }
 
-  // Loop: after each action the menu re-renders with fresh repo data
+  // Loop: after each action the menu re-renders with fresh repo data.
+  // SIGINT (Ctrl+C) during a sub-command returns here rather than killing the process.
   while (true) {
-    await runInkMenu(pkg);
+    try {
+      await runInkMenu(pkg);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'SIGINT') continue;
+      throw err;
+    }
   }
 }

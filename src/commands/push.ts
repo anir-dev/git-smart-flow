@@ -189,8 +189,8 @@ async function runInkPush(): Promise<void> {
     );
   }
 
-  const choice = await renderInteractive<string>(
-    (resolve) => React.createElement(PushUI, { onChoice: resolve }) as JSX.Element
+  const choice = await renderInteractive<string>((resolve) =>
+    React.createElement(PushUI, { onChoice: resolve })
   );
 
   if (choice !== 'push') {

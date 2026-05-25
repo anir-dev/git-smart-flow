@@ -17,7 +17,8 @@
       "Bash(grep -E \"^\\\\-.*\\\\.\\(js|json|md\\)$\")",
       "Bash(npm install *)",
       "WebFetch(domain:cli.github.com)",
-      "Bash(grep \"\\\\.ts$\")"
+      "Bash(grep \"\\\\.ts$\")",
+      "Bash(npm pack *)"
     ]
   }
 }
