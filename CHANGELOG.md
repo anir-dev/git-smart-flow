@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/anir-dev/git-smart-flow/compare/v0.3.0...v0.4.0) (2026-05-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** Node 18 and 20 are no longer supported.
+
+### chore
+
+* **deps:** bump react and @types/react ([#12](https://github.com/anir-dev/git-smart-flow/issues/12)) ([97afd0c](https://github.com/anir-dev/git-smart-flow/commit/97afd0c05715eec7073b3194ee782f294a74242b))
+
+
+### Features
+
+* **ux:** update .claude, src files ([#22](https://github.com/anir-dev/git-smart-flow/issues/22)) ([ff73595](https://github.com/anir-dev/git-smart-flow/commit/ff735953e80f483e2adad307ec768abc19b73dc8))
+
 ## [0.3.0](https://github.com/anir-dev/git-smart-flow/compare/v0.2.0...v0.3.0) (2026-05-22)
 
 
